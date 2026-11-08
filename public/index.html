@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- スマホのブラウザで、ダブルタップやピンチで拡大しないようにする（マップをなぞって歩くため） -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2e3a2b" />
+    <meta name="description" content="吃音の苦労を「種」として蒔き、やさしい言葉の手紙で水やりをする農場。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="吃音農場" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>吃音農場</title>
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #2e3a2b;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      /* 便箋の入力欄に、ブラウザ標準の青い枠を出さない（カーソルで入力中だとわかる） */
+      input:focus,
+      textarea:focus {
+        outline: none;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>吃音農場を遊ぶには JavaScript を有効にしてください。</noscript>
+    <div id="root"></div>
+  </body>
+</html>

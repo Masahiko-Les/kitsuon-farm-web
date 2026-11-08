@@ -1,0 +1,113 @@
+rules_version = '2';
+
+// 吃音農場のルール。reference/test_farm01/firestore.rules をそのまま使い、
+// 「すべてのデータを削除」のための delete だけを足している（★の行）。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function validText(t, max) { return t is string && t.size() > 0 && t.size() <= max; }
+    function seedPath(id) { return /databases/$(database)/documents/seeds/$(id); }
+    function letterPath(id) { return /databases/$(database)/documents/letters/$(id); }
+
+    // 村人
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && me() == userId
+        && validText(request.resource.data.villagerName, 12);
+      allow delete: if signedIn() && me() == userId; // ★
+
+      match /blocks/{blockedUid} {
+        allow read, write: if signedIn() && me() == userId;
+      }
+    }
+
+    // 種（位置と状態）。IDは「x_y」で、1マスに1つだけ。
+    match /seeds/{seedId} {
+      allow read: if signedIn()
+        && (resource.data.status == 'public' || resource.data.ownerUid == me());
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == me()
+        && request.resource.data.x is int && request.resource.data.y is int
+        && seedId == string(request.resource.data.x) + '_' + string(request.resource.data.y)
+        && request.resource.data.status in ['public', 'review']
+        && request.resource.data.waterCount == 0
+        && request.resource.data.waterers.size() == 0;
+
+      // 水やり：自分以外の公開中の種に、1人1回、最大5人まで
+      allow update: if signedIn()
+        && resource.data.status == 'public'
+        && resource.data.ownerUid != me()
+        && resource.data.waterCount < 5
+        && !(me() in resource.data.waterers)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['waterCount', 'waterers'])
+        && request.resource.data.waterCount == resource.data.waterCount + 1
+        && request.resource.data.waterers == resource.data.waterers.concat([me()]);
+
+      allow delete: if signedIn() && resource.data.ownerUid == me(); // ★
+    }
+
+    // 種の本文
+    match /seedBodies/{seedId} {
+      allow read: if signedIn()
+        && (resource.data.ownerUid == me() || get(seedPath(seedId)).data.status == 'public');
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == me()
+        && validText(request.resource.data.text, 600)
+        && !exists(seedPath(seedId))
+        && getAfter(seedPath(seedId)).data.ownerUid == me();
+
+      allow delete: if signedIn() && resource.data.ownerUid == me(); // ★
+    }
+
+    // 水やりの手紙。IDは「種ID_送り主uid」。
+    match /letters/{letterId} {
+      allow read: if signedIn()
+        && (resource.data.toUid == me() || resource.data.fromUid == me());
+
+      allow create: if signedIn()
+        && request.resource.data.fromUid == me()
+        && request.resource.data.status == 'unread'
+        && validText(request.resource.data.text, 600)
+        && letterId == request.resource.data.seedId + '_' + me()
+        && getAfter(seedPath(request.resource.data.seedId)).data.ownerUid == request.resource.data.toUid
+        && me() in getAfter(seedPath(request.resource.data.seedId)).data.waterers
+        && !(me() in get(seedPath(request.resource.data.seedId)).data.waterers)
+        && !exists(/databases/$(database)/documents/users/$(request.resource.data.toUid)/blocks/$(me()));
+
+      // 受け取った人だけが、既読・ありがとう・通報に変えられる
+      allow update: if signedIn()
+        && resource.data.toUid == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && resource.data.status in ['unread', 'read']
+        && request.resource.data.status in ['read', 'thanked', 'reported'];
+
+      allow delete: if signedIn() // ★
+        && (resource.data.toUid == me() || resource.data.fromUid == me());
+    }
+
+    // 作物。IDは手紙IDと同じ。「ありがとう」と同時に作られる。
+    match /crops/{cropId} {
+      allow read: if signedIn() && me() in resource.data.ownerUids;
+
+      allow create: if signedIn()
+        && request.resource.data.letterId == cropId
+        && get(letterPath(cropId)).data.toUid == me()
+        && get(letterPath(cropId)).data.status in ['unread', 'read']
+        && getAfter(letterPath(cropId)).data.status == 'thanked'
+        && request.resource.data.ownerUids == [me(), get(letterPath(cropId)).data.fromUid];
+
+      allow delete: if signedIn() && me() in resource.data.ownerUids; // ★
+    }
+
+    // 通報（運営がFirebaseコンソールで確認する）
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterUid == me()
+        && request.resource.data.targetType in ['seed', 'letter'];
+    }
+  }
+}

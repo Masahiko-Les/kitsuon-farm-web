@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>試作農園</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/test_farm01/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="hud">
+      <p class="villager"><span id="villager-name">…</span></p>
+      <nav class="hud-actions">
+        <button id="btn-mail" class="hud-btn" type="button">郵便受け<span id="mail-badge" class="badge" hidden></span></button>
+        <button id="btn-book" class="hud-btn" type="button">思い出帳</button>
+        <button id="btn-help" class="hud-btn hud-btn-small" type="button" aria-label="あそびかた">？</button>
+      </nav>
+    </header>
+
+    <main>
+      <div class="screen">
+        <canvas id="farm" width="256" height="192" aria-label="農園のマップ"></canvas>
+      </div>
+      <p id="hint" class="hint" aria-live="polite">読み込み中…</p>
+
+      <div class="controls">
+        <div class="dpad" role="group" aria-label="移動">
+          <button class="pad pad-up" type="button" data-dir="up" aria-label="上へ">▲</button>
+          <button class="pad pad-left" type="button" data-dir="left" aria-label="左へ">◀</button>
+          <button class="pad pad-right" type="button" data-dir="right" aria-label="右へ">▶</button>
+          <button class="pad pad-down" type="button" data-dir="down" aria-label="下へ">▼</button>
+        </div>
+        <button id="btn-a" class="a-btn" type="button">調べる</button>
+      </div>
+      <p class="keys">キーボード：矢印キーで移動、スペースで決定</p>
+    </main>
+  </div>
+
+  <dialog id="modal"><div id="modal-body"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/test_farm01/app.js"></script>
+</body>
+</html>
