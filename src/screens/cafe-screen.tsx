@@ -153,7 +153,6 @@ export function CafeScreen() {
           {step.kind === "voices" ? (
             <VoicesStep
               step={step}
-              onMore={() => go({ ...step, at: step.at + 1 })}
               onNext={() => nextQuestion(step.theme, step.index)}
               onReported={(id) => {
                 hide(id);
@@ -253,9 +252,9 @@ function AskStep({ theme, index, onSave, onSkip }: {
 }
 
 /* ---------- ほかの村人の言葉にふれる ---------- */
-function VoicesStep({ step, onMore, onNext, onReported }: {
+// 1つの質問で読むのは、隣の席の村人1人の言葉だけ（3問を通して同じ村人。一対一の会話にする）
+function VoicesStep({ step, onNext, onReported }: {
   step: Extract<Step, { kind: "voices" }>;
-  onMore: () => void;
   onNext: () => void;
   onReported: (id: string) => void;
 }) {
@@ -268,11 +267,9 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
   // まだ誰も言葉を残していない質問では、マスターのひとことだけで次へ進む
   const lead = !v
     ? (step.answered ? "話してくれて、ありがとうございます。" : "答えなくても大丈夫ですよ。")
-    : step.at > 0
-      ? "隣の席に、また別の村人が座りました。この方の言葉も、聞いてみましょうか。"
-      : step.answered
-        ? "話してくれて、ありがとうございます。隣の席の村人も、同じ質問にこんな言葉を残していますよ。"
-        : "答えなくても大丈夫ですよ。隣の席の村人の言葉を、そっと置いておきますね。";
+    : step.answered
+      ? "話してくれて、ありがとうございます。隣の席の村人も、同じ質問にこんな言葉を残していますよ。"
+      : "答えなくても大丈夫ですよ。隣の席の村人の言葉を、そっと置いておきますね。";
 
   const react = async (kind: ReactionId) => {
     if (!v?.answer) return;
@@ -338,7 +335,6 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
         </Animated.View>
       ) : null}
       <Actions>
-        {step.at + 1 < step.voices.length ? <Btn kind="quiet" label="ほかの村人の言葉も読む" onPress={onMore} /> : null}
         <Btn label={last ? "会話をおえる" : "次の質問へ"} onPress={onNext} />
       </Actions>
     </>
