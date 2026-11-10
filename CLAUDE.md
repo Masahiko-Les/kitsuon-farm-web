@@ -1,10 +1,10 @@
 # 吃音農場（Kitsuon Farm）Web版
 
-**このリポジトリはWeb版。** iPhoneアプリ（https://github.com/Masahiko-Les/kitsuon_nojo）を複製し、Expo の Web 出力で同じ体験をブラウザで遊べるようにしたもの。Firebase プロジェクト（kitsuonnojo）と Firestore ルールは iPhone版と共有しているので、両方のユーザーが同じ農場で遊べる。iPhone版の修正は、必要に応じてこちらにも反映する。
+**このリポジトリはWeb版。** iPhoneアプリ（https://github.com/Masahiko-Les/kitsuon_nojo）を複製し、Expo の Web 出力で同じ体験をブラウザで遊べるようにしたもの。**データと認証は Supabase、配信は Vercel**（2026年11月に Firebase から移行）。iPhone版は Firebase（kitsuonnojo）のままなので、iPhone版とWeb版は別々の農場。iPhone版の画面や文言の修正は、必要に応じてこちらにも反映する。
 
 ### Web版で差し替えている所
 - `index.web.js`：Skia は読み込んだ時点で CanvasKit を使うので、先に `public/canvaskit.wasm` を読み込んでからアプリ本体を読み込む（wasm は postinstall で node_modules からコピー）。
-- `src/lib/firebase.web.ts`：ブラウザ用の認証（IndexedDB に保存）。設定値は `src/lib/firebase-config.ts` の1か所。
+- `src/lib/supabase.ts`：Supabase のクライアント。URL と公開用キーはここの1か所（公開されても問題ない値。守りは RLS）。未入力のあいだはおためしモード。
 - `src/lib/confirm.ts`：`Alert.alert` は Web で出ないので `window.confirm` を使う。Alert を直接使わないこと。
 - `src/screens/farm-screen.tsx`：Web だけ矢印キー/WASD で歩き、Enter/スペースでAボタン。
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
@@ -14,13 +14,20 @@
 - 農場のカフェ（BUILDINGS の cafe）に入れる。店内の間取りと座っている村人は `src/lib/game.ts` の `ROOMS.cafe` と `CAFE_GUESTS`、描画は `src/components/farm-map.tsx` の `cafeArt()`。
 - マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・お手本・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。お手本は「運営が用意したお手本の言葉」と必ず表示する。
 - 「できたこと」と村のマップ、App Store の評価ダイアログは移植していない。
-- データは kitsuonnojo の `cafeAnswers`・`cafeReactions`・`reports`（targetType: cafeAnswer）。ルールは `firestore.rules` の☆の行。iPhone版と共有しているプロジェクトなので、種・手紙・作物のルールは変えない。
-- 運営は `admins/{uid}`（Firebase コンソールからだけ作る）。設定画面の下の「村人ID」で uid を確かめる。運営へのメール通知（Cloud Functions）はまだない（Blaze プランが必要）。
+- データは Supabase の `cafe_answers`・`cafe_reactions`・`reports`（target_type: cafeAnswer）。
+- 運営は `admins` テーブルに村人IDを入れた人（Supabase のダッシュボードからだけ書ける）。設定画面の下の「村人ID」で確かめる。運営へのメール通知はまだない。
 
 ### コマンド
 - `npm run web`：開発サーバー
 - `npm run build:web`：`dist/` に書き出す
-- `npm run deploy`：書き出して Firebase Hosting に公開（`--only hosting`。共有している Firestore ルールは上書きしない）
+- 公開：GitHub の main に push すると、Vercel が `npm run build:web` を実行して公開する（`vercel.json`）
+
+### データベース（Supabase）
+- スキーマ・RLS・RPC・Realtime は `supabase/migrations/` の SQL がすべて。変えるときは新しい番号のファイルを足し、SQL Editor で実行する。準備の手順は `supabase/README.md`。
+- 列は snake_case、アプリの型は camelCase。変換は `src/lib/farm-api.ts` と `src/lib/cafe-api.ts` の中だけで行う。
+- 種を蒔く（`sow_seed`）・水やり（`water_seed`）・ありがとう（`say_thanks`）・手紙の通報（`report_letter`）・データ削除（`delete_my_account`）は RPC。条件に合わないと 'taken' 'gone' 'already' 'full' 'blocked' の例外が Error になって届く。村人名は RPC の中で profiles から読む。
+- 手紙の既読・カフェの状態・通報の確認済みは、列ごとの権限で status などの列だけ更新できる。カフェの状態の変え方はトリガー（`check_cafe_status`）で確かめる。
+- 画面の更新は Supabase Realtime（seeds・letters・crops・blocks）。変化が届いたら一覧を読み直す（`src/state/farm.tsx`）。
 
 ---
 
@@ -39,11 +46,11 @@
 | --- | --- |
 | アプリ | Expo（React Native）＋ TypeScript、Expo Router |
 | マップ描画 | @shopify/react-native-skia（試作版のCanvas描画を移植） |
-| DB | Firebase JS SDK の Firestore |
-| 認証 | Firebase Auth の匿名認証。永続化は `initializeAuth` ＋ `getReactNativePersistence(AsyncStorage)` |
+| DB | Supabase（Postgres。RLS で守る） |
+| 認証 | Supabase Auth の匿名サインイン。セッションは AsyncStorage（Web では localStorage） |
 | ビルド・提出 | EAS Build / EAS Submit |
 
-Firebase は JS SDK を使い、React Native Firebase（ネイティブモジュール）は使わない。Expo Go で動作確認できる状態を保つ。
+（ここから下は iPhone版から引き継いだ説明。Firebase・Firestore と書いてある所は、Web版では Supabase に読み替える）
 
 ## 決まっている仕様
 
@@ -91,6 +98,6 @@ Firebase は JS SDK を使い、React Native Firebase（ネイティブモジュ
 ## 約束ごと
 
 - 画面に出る文言はすべて日本語。試作版の言い回しをそのまま使う。
-- Firestore への書き込みは、`firestore.rules` が許す形だけにする（水やりはトランザクション、ありがとうはバッチ書き込み）。
+- データベースへの書き込みは、`supabase/migrations/` の RLS と RPC が許す形だけにする（まとめて書く操作は RPC）。
 - `CRISIS_WORDS` と相談窓口の電話番号は1つのファイルにまとめ、公開前に見直せるようにする。
-- 秘密情報はない（Firebaseの設定値は公開されても問題ない）が、`firebaseConfig` は `src/lib/firebase-config.ts` の1か所にまとめる。
+- 秘密情報はない（Supabase の URL と公開用キーは公開されても問題ない）が、`src/lib/supabase.ts` の1か所にまとめる。service_role キーは絶対にアプリに入れない。

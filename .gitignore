@@ -44,4 +44,4 @@ example
 
 # Skia Web（npm install のときに node_modules からコピーされる）
 public/canvaskit.wasm
-.firebase/
+.vercel/

@@ -1,4 +1,3 @@
-import { FirebaseError } from "firebase/app";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -80,7 +79,7 @@ function SowModal({ x, y }: { x: number; y: number }) {
       }
     } catch (e) {
       setBusy(false);
-      setErr(e instanceof FirebaseError && e.code === "permission-denied"
+      setErr((e as Error).message === "taken"
         ? "この場所にはすでに種が埋まっています。別の場所で蒔いてください。"
         : "種を蒔けませんでした。通信を確認して、もう一度押してください。");
       console.error(e);

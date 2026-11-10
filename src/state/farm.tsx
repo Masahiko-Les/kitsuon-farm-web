@@ -1,14 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { useToast } from "@/components/toast";
 import {
-  type CropDoc, type Letter, type Seed, agreeTerms, deleteEverything, loadUser, millis, registerName,
+  type CropDoc, type Letter, type Seed, agreeTerms, deleteEverything, loadBlocks, loadCrops, loadIsAdmin, loadLettersTo,
+  loadMySeeds, loadPublicSeeds, loadUser, millis, registerName,
 } from "@/lib/farm-api";
 import { CAFE_HIDDEN_KEY } from "@/lib/cafe-api";
-import { auth, db, isConfigured } from "@/lib/firebase";
+import { isConfigured, supabase } from "@/lib/supabase";
 import { TERMS_VERSION, cropById } from "@/lib/game";
 
 const HIDDEN_KEY = "kitsuon-hidden-seeds";
@@ -47,18 +46,19 @@ export function useFarm() {
 
 export function FarmProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
-  // Firebase の設定値が未入力のあいだは、保存なしでマップだけ歩ける
+  // Supabase の設定値が未入力のあいだは、保存なしでマップだけ歩ける（おためしモード）
   const [phase, setPhase] = useState<Phase>(isConfigured ? "loading" : "ready");
   const [errorMessage, setErrorMessage] = useState("");
   const [uid, setUid] = useState(isConfigured ? "" : "offline");
   const [name, setName] = useState(isConfigured ? "" : "おためし");
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // 運営かどうか（admins/{uid} は Firebase コンソールからだけ作る）
+  // 運営かどうか（admins テーブルは Supabase のダッシュボードからだけ書ける）
   useEffect(() => {
     if (phase !== "ready" || !uid || !isConfigured) return;
-    const unsub = onSnapshot(doc(db, "admins", uid), (snap) => setIsAdmin(snap.exists()), (e) => console.error("admin", e));
-    return () => { unsub(); setIsAdmin(false); };
+    let alive = true;
+    loadIsAdmin(uid).then((v) => { if (alive) setIsAdmin(v); }).catch((e) => console.error("admin", e));
+    return () => { alive = false; setIsAdmin(false); };
   }, [phase, uid]);
   const [publicSeeds, setPublicSeeds] = useState(new Map<string, Seed>());
   const [mySeeds, setMySeeds] = useState(new Map<string, Seed>());
@@ -98,32 +98,43 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // 匿名ログインと村人情報
+  // 匿名ログインと村人情報。セッションがなければ匿名でサインインする（ブラウザに保存され、次も同じ村人）
   useEffect(() => {
     if (!isConfigured) return;
-    return onAuthStateChanged(auth, async (user) => {
+    let lastUid = "";
+    const handle = async (user: { id: string } | null) => {
       if (!user) {
+        lastUid = "";
         setPhase("loading");
         setUid("");
         setName("");
-        try { await signInAnonymously(auth); } catch (e) {
-          setErrorMessage("ログインできませんでした。Firebaseの設定（匿名認証）を確認してください。");
+        const { error } = await supabase.auth.signInAnonymously();
+        if (error) {
+          setErrorMessage("ログインできませんでした。Supabase の設定（匿名サインイン）を確認してください。");
           setPhase("error");
-          console.error(e);
+          console.error(error);
         }
-        return;
+        return; // サインインできたら、もう一度ここに来る
       }
+      if (user.id === lastUid) return; // トークンの更新など、同じ村人のまま
+      lastUid = user.id;
       try {
-        const u = await loadUser(user.uid);
-        setUid(user.uid);
+        const u = await loadUser(user.id);
+        setUid(user.id);
         setName(u?.villagerName ?? "");
         setPhase(!u ? "name" : (u.termsVersion ?? 0) < TERMS_VERSION ? "terms" : "ready");
       } catch (e) {
-        setErrorMessage("読み込めませんでした。Firebaseの設定を確認してください。");
+        lastUid = "";
+        setErrorMessage("読み込めませんでした。通信を確認して、ページを開き直してください。");
         setPhase("error");
         console.error(e);
       }
+    };
+    // コールバックの中で Supabase を待つと固まることがあるので、一度外に出してから処理する
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => { handle(session?.user ?? null); }, 0);
     });
+    return () => data.subscription.unsubscribe();
   }, []);
 
   const register = useCallback(async (n: string) => {
@@ -152,50 +163,53 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     setPhase("ready");
   }, [uid, name]);
 
-  // Firestore の購読
+  // 購読。最初に一覧を読み、Supabase Realtime で変化が届いたら読み直す（短い間隔はまとめる）
   useEffect(() => {
     if (phase !== "ready" || !uid || !isConfigured) return;
-    const unsubs: (() => void)[] = [];
+    let alive = true;
+    const loaders = {
+      publicSeeds: async () => { const l = await loadPublicSeeds(); if (alive) setPublicSeeds(new Map(l.map((x) => [x.id, x]))); },
+      mySeeds: async () => { const l = await loadMySeeds(uid); if (alive) setMySeeds(new Map(l.map((x) => [x.id, x]))); },
+      letters: async () => { const l = await loadLettersTo(uid); if (alive) setRawLetters(l); },
+      crops: async () => { const l = await loadCrops(uid); if (alive) setCrops(l); },
+      blocks: async () => { const l = await loadBlocks(uid); if (alive) setBlocked(new Set(l)); },
+    };
+    type Key = keyof typeof loaders;
+    const timers = new Map<Key, ReturnType<typeof setTimeout>>();
+    const refresh = (k: Key) => {
+      clearTimeout(timers.get(k));
+      timers.set(k, setTimeout(() => { loaders[k]().catch((e) => console.error(k, e)); }, 150));
+    };
+    const refreshAll = () => (Object.keys(loaders) as Key[]).forEach(refresh);
+    refreshAll();
 
-    unsubs.push(onSnapshot(query(collection(db, "seeds"), where("status", "==", "public")), (snap) => {
-      setPublicSeeds(new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Seed])));
-    }, (e) => console.error("seeds", e)));
-
-    unsubs.push(onSnapshot(query(collection(db, "seeds"), where("ownerUid", "==", uid)), (snap) => {
-      setMySeeds(new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Seed])));
-    }, (e) => console.error("mySeeds", e)));
-
-    let lettersReady = false;
-    unsubs.push(onSnapshot(query(collection(db, "letters"), where("toUid", "==", uid)), (snap) => {
-      if (lettersReady) {
-        snap.docChanges().forEach((ch) => {
-          if (ch.type === "added" && !blockedRef.current.has(ch.doc.data().fromUid)) toast("郵便受けに手紙が届きました。");
-        });
-      }
-      lettersReady = true;
-      setRawLetters(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Letter));
-    }, (e) => console.error("letters", e)));
-
-    let cropsReady = false;
-    unsubs.push(onSnapshot(query(collection(db, "crops"), where("ownerUids", "array-contains", uid)), (snap) => {
-      if (cropsReady) {
-        snap.docChanges().forEach((ch) => {
-          const c = ch.doc.data() as CropDoc;
-          if (ch.type === "added" && c.watererUid === uid) {
-            toast(`${c.sowerName}さんから「ありがとう」。あなたの言葉で${cropById(c.cropType).name}が実りました。`);
-          }
-        });
-      }
-      cropsReady = true;
-      setCrops(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CropDoc));
-    }, (e) => console.error("crops", e)));
-
-    unsubs.push(onSnapshot(collection(db, "users", uid, "blocks"), (snap) => {
-      setBlocked(new Set(snap.docs.map((d) => d.id)));
-    }, (e) => console.error("blocks", e)));
+    const channel = supabase.channel(`farm-${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "seeds" }, () => {
+        refresh("publicSeeds");
+        refresh("mySeeds");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "letters", filter: `to_uid=eq.${uid}` }, (p) => {
+        if (p.eventType === "INSERT" && !blockedRef.current.has((p.new as { from_uid: string }).from_uid)) {
+          toast("郵便受けに手紙が届きました。");
+        }
+        refresh("letters");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `sower_uid=eq.${uid}` }, () => refresh("crops"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `waterer_uid=eq.${uid}` }, (p) => {
+        if (p.eventType === "INSERT") {
+          const c = p.new as { sower_name: string; crop_type: string };
+          toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が実りました。`);
+        }
+        refresh("crops");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "blocks", filter: `owner_uid=eq.${uid}` }, () => refresh("blocks"))
+      // つながった（つながり直した）ときは、そのあいだの変化を取りこぼさないように全部読み直す
+      .subscribe((status) => { if (status === "SUBSCRIBED") refreshAll(); });
 
     return () => {
-      unsubs.forEach((u) => u());
+      alive = false;
+      timers.forEach((t) => clearTimeout(t));
+      supabase.removeChannel(channel);
       setPublicSeeds(new Map());
       setMySeeds(new Map());
       setRawLetters([]);

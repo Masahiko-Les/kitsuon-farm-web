@@ -8,9 +8,6 @@
       ],
       "@/assets/*": [
         "./assets/*"
-      ],
-      "firebase/auth": [
-        "./node_modules/@firebase/auth/dist/rn/index.rn.d.ts"
       ]
     }
   },

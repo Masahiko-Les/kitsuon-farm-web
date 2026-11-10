@@ -51,11 +51,11 @@ title: プライバシーポリシー｜吃音農場
 
 ## 4. 情報の保管と委託
 
-情報は、Google LLC が提供する Firebase（Cloud Firestore と Firebase Authentication）に保存します。
+情報は、Supabase, Inc. が提供する Supabase（データベースと認証）に保存します。ページの配信には、Vercel Inc. が提供する Vercel を使います。
 
-- 保存先のサーバーは、日本の外（アメリカ合衆国など）にある場合があります。
-- Google は、運営の委託を受けて情報を保管します。
-- Google での情報の扱いについては、[Firebase のプライバシーとセキュリティ](https://firebase.google.com/support/privacy)をご覧ください。
+- 保存先のサーバーは、日本（東京リージョン）にあります。配信や障害対応のため、日本の外のサーバーを経由する場合があります。
+- Supabase と Vercel は、運営の委託を受けて情報を保管・配信します。
+- それぞれの情報の扱いについては、[Supabase のプライバシーポリシー](https://supabase.com/privacy)と[Vercel のプライバシーポリシー](https://vercel.com/legal/privacy-policy)をご覧ください。
 
 運営は、法令にもとづく場合を除き、あなたの同意なく情報を第三者に提供しません。
 
