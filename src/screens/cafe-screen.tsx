@@ -11,7 +11,7 @@ import { useToast } from "@/components/toast";
 import { Actions, Btn, ErrorText, LinkBtn, Links, Paper, PaperInput, Small, T } from "@/components/ui";
 import { REACTIONS, type ReactionId, THEMES, type Theme } from "@/lib/cafe";
 import {
-  CAFE_HIDDEN_KEY, type CafeSeries, type Voice, loadSeries, newSessionId, reportAnswer, saveAnswer, sendReaction, setSeriesStatus, voicesFor,
+  CAFE_HIDDEN_KEY, type CafeSeries, type Voice, canReact, loadSeries, newSessionId, reportAnswer, saveAnswer, sendReaction, setSeriesStatus, voicesFor,
 } from "@/lib/cafe-api";
 import { confirmDialog } from "@/lib/confirm";
 import { checkText } from "@/lib/text";
@@ -315,7 +315,7 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
             </View>
           ) : null}
           <Paper text={v.text} from={v.sample ? "お手本（運営）" : "村人より"} />
-          {v.answer ? (
+          {v.answer && canReact(v.answer) ? (
             <>
               <T style={s.reactLead}>読んで感じた気持ちを、そっと届けられます（書いた人にだけ届きます）</T>
               <View style={s.reactions}>
@@ -334,9 +334,9 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
                   );
                 })}
               </View>
-              <Links><LinkBtn label="この言葉を通報する" onPress={report} /></Links>
             </>
           ) : null}
+          {v.answer ? <Links><LinkBtn label="この言葉を通報する" onPress={report} /></Links> : null}
         </Animated.View>
       ) : null}
       <Actions>

@@ -18,7 +18,8 @@ export type CafeStatus = "draft" | "pending" | "public" | "private" | "review";
 
 export type CafeAnswer = {
   id: string;
-  uid: string;
+  uid: string | null; // 取り込んだ言葉（アカウントのない村人の言葉）は null
+  authorKey?: string | null; // 取り込んだ言葉の書き手の区別（uid の代わりに、同じ書き手の話を1つにまとめるのに使う）
   sessionId: string; // 同じ会話（3問1シリーズ）の回答に共通のID
   themeId: string;
   questionId: string;
@@ -52,7 +53,8 @@ export const newSessionId = () =>
 type Row = Record<string, unknown>;
 const toAnswer = (r: Row): CafeAnswer => ({
   id: r.id as string,
-  uid: r.uid as string,
+  uid: (r.uid as string | null) ?? null,
+  authorKey: (r.author_key as string | null) ?? null,
   sessionId: r.session_id as string,
   themeId: r.theme_id as string,
   questionId: r.question_id as string,
@@ -108,7 +110,10 @@ export async function loadSeries(themeId: string, uid: string, hidden: Set<strin
       .filter(([, answers]) => answers[0].uid !== uid
         && !answers.some((a) => hidden.has(a.id))
         && theme.questions.every((q) => answers.some((a) => a.questionId === q.id)))
-      .map(([sessionId, answers]) => ({ sessionId, uid: answers[0].uid, answers }));
+      // 取り込んだ言葉は uid がないので、書き手の区別（author_key）で1人1シリーズにする
+      .map(([sessionId, answers]) => ({
+        sessionId, uid: answers[0].uid ?? `import:${answers[0].authorKey ?? sessionId}`, answers,
+      }));
     shuffle(series);
     const seen = new Set<string>();
     return series.filter((x) => !seen.has(x.uid) && seen.add(x.uid)).slice(0, MAX_VOICES);
@@ -135,7 +140,11 @@ function shuffle<T>(arr: T[]) {
 }
 
 /* ---------- 気持ちを届ける（1つの言葉に1人1つ。あとから選び直せる） ---------- */
+// 気持ちを届けられるのは、アカウントのある村人の言葉だけ（取り込んだ言葉には届け先がない）
+export const canReact = (a?: CafeAnswer) => !!a?.uid;
+
 export async function sendReaction(uid: string, answer: CafeAnswer, kind: ReactionId) {
+  if (!answer.uid) throw new Error("no recipient");
   must(await supabase.from("cafe_reactions").upsert({
     id: `${answer.id}_${uid}`,
     answer_id: answer.id,
