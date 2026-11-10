@@ -340,12 +340,28 @@ function drawSparkle(X: number, Y: number, t: number, tx: number) {
     rect(X + 7, Y + 6, 2, 2, "#fff6c2");
   }
 }
-function drawFullPlant(X: number, Y: number) {
+// 満員（5人が水やり）になった種。村人の優しさで咲いた花
+function drawFlower(X: number, Y: number) {
   drawMound(X, Y);
-  rect(X + 7, Y + 3, 2, 8, "#4f8f3a");
-  rect(X + 3, Y + 5, 4, 2, "#7cc35a");
-  rect(X + 9, Y + 4, 4, 2, "#7cc35a");
-  rect(X + 5, Y + 1, 6, 3, "#e8a33c");
+  rect(X + 7, Y + 5, 2, 6, "#4f8f3a");
+  rect(X + 4, Y + 7, 3, 2, "#7cc35a");
+  rect(X + 9, Y + 6, 3, 2, "#7cc35a");
+  // 花びらと、まんなか
+  rect(X + 6, Y + 0, 4, 1, "#f2a7b8");
+  rect(X + 5, Y + 1, 6, 4, "#f2a7b8");
+  rect(X + 6, Y + 5, 4, 1, "#f2a7b8");
+  rect(X + 5, Y + 1, 1, 1, "#e58aa0");
+  rect(X + 10, Y + 4, 1, 1, "#e58aa0");
+  rect(X + 7, Y + 2, 2, 2, "#f6d24a");
+}
+
+// 種の育ち具合は3段階だけ見せる（水やりの人数がわからないように）。0回=種、1〜4回=芽、満員=花
+type Stage = "seed" | "sprout" | "flower";
+const stageOf = (waterCount: number): Stage => (waterCount >= 5 ? "flower" : waterCount > 0 ? "sprout" : "seed");
+function drawStage(X: number, Y: number, stage: Stage, pale = false) {
+  if (stage === "flower") drawFlower(X, Y);
+  else if (stage === "sprout") drawSprout(X, Y, 2, pale);
+  else drawSeed(X, Y);
 }
 
 /* ---------- 村人 ---------- */
@@ -748,14 +764,11 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
       if (!inView(s.x, s.y)) continue;
       const X = s.x * TILE, Y = s.y * TILE;
       const kind = scene.kindOf(s);
-      // 自分の種：水やりされるまでは種のまま。ほかの村人が水やりすると芽が出て、回数に応じて育つ
-      if (kind === "mine") {
-        if ((s.waterCount || 0) > 0) drawSprout(X, Y, Math.min(5, s.waterCount), false);
-        else drawSeed(X, Y);
-      }
+      // 自分の種：水やりされるまでは種、水やりされると芽、満員で花
+      if (kind === "mine") drawStage(X, Y, stageOf(s.waterCount || 0));
       else if (kind === "mine-review") drawMound(X, Y, "#7d7666");
-      else if (kind === "watered") drawSprout(X, Y, 1, true);
-      else if (kind === "full") drawFullPlant(X, Y);
+      else if (kind === "watered") drawStage(X, Y, stageOf(s.waterCount || 0), true);
+      else if (kind === "full") drawFlower(X, Y);
       else if (kind === "open" && Math.abs(s.x - px) + Math.abs(s.y - py) <= 2) drawSparkle(X, Y, t, s.x);
     }
     drawEffects(t);

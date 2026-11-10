@@ -13,7 +13,7 @@ import {
   type CropDoc, type Letter, type Seed, blockUser, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
   reportSeed, sayThanks, sowSeed, waterSeed,
 } from "@/lib/farm-api";
-import { CROPS, type Crop, MAX_WATERERS, SEED_MIN_CHARS, cropById, randomCrop } from "@/lib/game";
+import { CROPS, type Crop, SEED_MIN_CHARS, cropById, randomCrop } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
@@ -216,7 +216,7 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
     } catch (e) {
       setBusy(false);
       const messages: Record<string, string> = {
-        full: `この種にはすでに${MAX_WATERERS}人が水やりしました。`,
+        full: "村人の優しさで花が咲きました。",
         already: "この種にはもう水やりしました。",
         gone: "この種は見つからなくなりました。",
       };

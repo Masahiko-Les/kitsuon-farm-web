@@ -205,7 +205,7 @@ export function FarmScreen() {
       return { label: "見る", hint: "あなたが水やりした種だ。", run: () => a.showWateredSeed(seed) };
     }
     if (kind === "full") {
-      return { label: "見る", hint: "5人に水やりされて、すっかり育った。", run: () => toast("この種は5人に水やりされ、育ちきりました。") };
+      return { label: "見る", hint: "村人の優しさで花が咲きました。", run: () => toast("村人の優しさで花が咲きました。") };
     }
     if (tileAt(pos.x, pos.y) === "D") {
       return { label: "…", hint: "砂漠だ。ここには種を蒔けない。", run: null };
