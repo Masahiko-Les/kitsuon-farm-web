@@ -107,14 +107,13 @@ function OwnSeedModal({ seed }: { seed: Seed }) {
   useEffect(() => {
     readSeedText(seed.id).then(setText).catch(() => setText("読み込めませんでした。"));
   }, [seed.id]);
-  const status = seed.status === "review"
-    ? "この種は確認中のため、ほかの村人には見えていません。"
-    : `${seed.waterCount || 0}人が水やりしてくれました（最大${MAX_WATERERS}人）。`;
+  // 水やりの人数は見せない。確認中のときだけ、そのことを伝える
+  const status = seed.status === "review" ? "この種は確認中のため、ほかの村人には見えていません。" : "";
   return (
     <>
       <Title>あなたが蒔いた種</Title>
       <Paper text={text} />
-      <Small>{status}</Small>
+      {status ? <Small>{status}</Small> : null}
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );
@@ -142,7 +141,6 @@ function WateredSeedModal({ seed }: { seed: Seed }) {
       {crop
         ? <Body style={{ marginTop: 14 }}>{`${seed.ownerName}さんから「ありがとう」が届き、${cropById(crop.cropType).name}が実りました。`}</Body>
         : null}
-      <Small>{`${seed.waterCount || 0}人が水やりしました（最大${MAX_WATERERS}人）。`}</Small>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );
