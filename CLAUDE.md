@@ -20,7 +20,7 @@
 ### コマンド
 - `npm run web`：開発サーバー
 - `npm run build:web`：`dist/` に書き出す
-- 公開：GitHub の main に push すると、Vercel が `npm run build:web` を実行して公開する（`vercel.json`）
+- 公開：GitHub の main に push すると、Vercel（プロジェクト kitsuonmura）が `npm run build:web` を実行して https://kitsuonmura.vercel.app に公開する（`vercel.json`）
 
 ### データベース（Supabase）
 - スキーマ・RLS・RPC・Realtime は `supabase/migrations/` の SQL がすべて。変えるときは新しい番号のファイルを足し、SQL Editor で実行する。準備の手順は `supabase/README.md`。
