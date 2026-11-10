@@ -14,7 +14,7 @@ import {
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { useFarm } from "@/state/farm";
-import { C } from "@/theme";
+import { C, R, blur, shadow } from "@/theme";
 
 // go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
 type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "mayor"; seat?: { x: number; y: number } };
@@ -368,7 +368,7 @@ export function FarmScreen() {
             onPress={pressA}
             style={({ pressed }) => [s.aBtn, pressed && s.aBtnPressed, !canPress && s.aBtnOff]}
           >
-            <T style={s.aText}>{action.label}</T>
+            <T style={[s.aText, !canPress && { color: C.sub }]}>{action.label}</T>
           </Pressable>
         </View>
       </View>
@@ -399,10 +399,11 @@ const KEY_REPEAT = 140;
 const HUD_H = 52; // 上の帯（ステータスバーを除く）
 const GAP = 8;
 const BOTTOM_PAD = 12;
-const A_SIZE = 84;
+const A_SIZE = 78;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.moss },
+  // 地図の上に重ねる帯は、すりガラス風の半透明
   hud: {
     position: "absolute",
     top: 0,
@@ -412,62 +413,68 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    paddingBottom: 8,
-    backgroundColor: "rgba(31,39,29,0.78)",
+    paddingBottom: 10,
+    backgroundColor: C.glass,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+    ...blur(14),
   },
-  villager: { fontSize: 15, color: C.leaf, flexShrink: 1 },
+  villager: { fontSize: 15, fontWeight: "700", color: C.text, flexShrink: 1, letterSpacing: 0.3 },
   hudActions: { flexDirection: "row", gap: 6, flexShrink: 0 },
   hudBtn: {
-    backgroundColor: C.mossSoft,
-    borderColor: C.mossDeep,
-    borderWidth: 2,
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    shadowColor: C.mossDeep,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
   },
-  hudBtnPressed: { transform: [{ translateY: 2 }], shadowOffset: { width: 0, height: 1 } },
-  hudText: { fontSize: 14 },
+  hudBtnPressed: { backgroundColor: "rgba(255,255,255,0.18)" },
+  hudText: { fontSize: 13, fontWeight: "600", color: C.text },
   badge: {
     position: "absolute",
-    top: -8,
-    right: -8,
-    minWidth: 20,
-    height: 20,
+    top: -6,
+    right: -4,
+    minWidth: 18,
+    height: 18,
     paddingHorizontal: 5,
-    borderRadius: 10,
+    borderRadius: 9,
     backgroundColor: C.mail,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: C.mossDeep,
   },
-  badgeText: { fontSize: 12, color: "#fff", lineHeight: 16 },
+  badgeText: { fontSize: 10, fontWeight: "700", color: "#fff", lineHeight: 12 },
   bottom: { position: "absolute", left: 0, right: 0, bottom: 0 },
   hint: {
     flex: 1,
-    minHeight: 64,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(31,39,29,0.82)",
-    borderRadius: 6,
+    minHeight: 60,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: C.glass,
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.lg,
     justifyContent: "center",
+    ...blur(14),
+    ...shadow(6, 20, 0.25),
   },
-  hintText: { fontSize: 15, lineHeight: 22 },
+  hintText: { fontSize: 14, lineHeight: 22, color: C.text },
   controls: { flexDirection: "row", alignItems: "center", gap: 12 },
   aBtn: {
     width: A_SIZE,
     height: A_SIZE,
     borderRadius: A_SIZE / 2,
-    marginRight: 4,
-    backgroundColor: "rgba(156,200,106,0.82)",
-    borderColor: "rgba(31,39,29,0.7)",
-    borderWidth: 3,
+    marginRight: 2,
+    backgroundColor: C.leaf,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.35)",
+    ...shadow(8, 22, 0.35),
   },
-  aBtnPressed: { backgroundColor: "rgba(156,200,106,0.95)", transform: [{ translateY: 2 }] },
-  aBtnOff: { backgroundColor: "rgba(111,154,68,0.6)" },
-  aText: { fontSize: 18, color: C.ink },
+  aBtnPressed: { transform: [{ scale: 0.95 }], opacity: 0.9 },
+  aBtnOff: { backgroundColor: "rgba(40,52,46,0.78)", borderColor: C.line, ...blur(14) },
+  aText: { fontSize: 16, fontWeight: "800", color: C.onLeaf, letterSpacing: 0.5 },
 });

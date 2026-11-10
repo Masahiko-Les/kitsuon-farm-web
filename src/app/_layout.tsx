@@ -1,4 +1,3 @@
-import { DotGothic16_400Regular } from "@expo-google-fonts/dotgothic16";
 import { KleeOne_400Regular, KleeOne_600SemiBold } from "@expo-google-fonts/klee-one";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -19,7 +18,7 @@ import { C, F } from "@/theme";
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({ DotGothic16_400Regular, KleeOne_400Regular, KleeOne_600SemiBold });
+  const [loaded, error] = useFonts({ KleeOne_400Regular, KleeOne_600SemiBold });
 
   useEffect(() => {
     if (loaded || error) SplashScreen.hideAsync();

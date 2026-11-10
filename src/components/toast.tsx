@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import Animated, { FadeInUp, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { C } from "@/theme";
+import { C, R, shadow } from "@/theme";
 import { T } from "./ui";
 
 type Msg = { id: number; text: string } | null;
@@ -50,12 +50,11 @@ export function ToastLayer() {
 const s = StyleSheet.create({
   wrap: { position: "absolute", left: 16, right: 16, alignItems: "center", zIndex: 100, elevation: 100 },
   toast: {
-    backgroundColor: C.paper,
-    borderColor: C.mossDeep,
-    borderWidth: 2,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    backgroundColor: "rgba(251,246,234,0.96)",
+    borderRadius: R.pill,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    ...shadow(8, 24, 0.3),
   },
-  text: { color: C.ink, fontSize: 15, lineHeight: 22 },
+  text: { color: C.ink, fontSize: 14, lineHeight: 21, fontWeight: "600" },
 });

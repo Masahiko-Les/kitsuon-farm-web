@@ -8,7 +8,7 @@ import { NAME_MAX } from "@/lib/game";
 import { GUIDELINES, TERMS } from "@/lib/terms";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
-import { C, F } from "@/theme";
+import { C, F, R, shadow } from "@/theme";
 
 function Frame({ children }: { children: ReactNode }) {
   return (
@@ -140,27 +140,28 @@ const s = StyleSheet.create({
     maxWidth: 440,
     alignSelf: "center",
     backgroundColor: C.mossSoft,
-    borderColor: C.mossDeep,
-    borderWidth: 3,
-    borderRadius: 10,
-    padding: 18,
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.lg,
+    padding: 24,
+    ...shadow(12, 32, 0.35),
   },
   nameInput: {
     width: "100%",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
     fontFamily: F.ui,
     fontSize: 16,
-    borderColor: C.mossDeep,
-    borderWidth: 2,
-    borderRadius: 6,
-    backgroundColor: C.paper,
-    color: C.ink,
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.md,
+    backgroundColor: C.surface2,
+    color: C.text,
   },
-  termHead: { fontSize: 15, color: C.leaf, marginBottom: 2 },
+  termHead: { fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 4 },
   termBody: { fontSize: 14, lineHeight: 22, color: C.soft },
   check: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
-  box: { width: 26, height: 26, borderRadius: 4, borderWidth: 2, borderColor: C.mossDeep, backgroundColor: C.moss, alignItems: "center", justifyContent: "center" },
-  boxOn: { backgroundColor: C.leaf },
-  tick: { color: C.ink, fontSize: 16, lineHeight: 20 },
+  box: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: C.sub, backgroundColor: "transparent", alignItems: "center", justifyContent: "center" },
+  boxOn: { backgroundColor: C.leaf, borderColor: C.leaf },
+  tick: { color: C.onLeaf, fontSize: 14, lineHeight: 18, fontWeight: "800" },
 });

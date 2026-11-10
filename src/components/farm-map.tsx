@@ -9,6 +9,7 @@ import {
   VIEW_TILES_ACROSS, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
+import { hiFarmer, hiFence, hiFlower, hiGrass, hiHouse, hiMailbox, hiMayor, hiPath, hiSeed, hiSoil, hiSparkle, hiSprout, hiTree, hiWater } from "./hires";
 
 export const MOVE_MS = 150;
 const W = COLS * TILE; // マップ全体
@@ -67,31 +68,17 @@ const hash = (x: number, y: number) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 
 /* ---------- タイル ---------- */
 function drawGrass(X: number, Y: number, tx: number, ty: number) {
-  rect(X, Y, 16, 16, "#8dbf5a");
-  const h = hash(tx, ty);
-  for (let i = 0; i < 4; i++) {
-    const gx = ((h >> (i * 4)) % 14) + 1;
-    const gy = ((h >> (i * 4 + 2)) % 13) + 1;
-    rect(X + gx, Y + gy, 1, 2, "#6fa347");
-  }
+  hiGrass(rect, X, Y, tx, ty);
 }
-function drawSoil(X: number, Y: number) {
-  rect(X, Y, 16, 16, "#8a5a34");
-  for (const r of [3, 7, 11, 15]) rect(X, Y + r, 16, 1, "#6f4526");
-  rect(X + 3, Y + 1, 2, 1, "#a06c42");
-  rect(X + 10, Y + 9, 2, 1, "#a06c42");
+function drawSoil(X: number, Y: number, tx = 0, ty = 0) {
+  hiSoil(rect, X, Y, tx, ty);
 }
 function drawPath(X: number, Y: number, tx: number, ty: number) {
-  rect(X, Y, 16, 16, "#d8c28e");
-  const h = hash(tx, ty);
-  rect(X + (h % 12) + 2, Y + ((h >> 3) % 12) + 2, 2, 1, "#bfa674");
-  rect(X + ((h >> 6) % 12) + 2, Y + ((h >> 9) % 12) + 2, 1, 1, "#bfa674");
+  const not = (x: number, y: number) => tileAt(x, y) !== "P";
+  hiPath(rect, X, Y, tx, ty, { up: not(tx, ty - 1), down: not(tx, ty + 1), left: not(tx - 1, ty), right: not(tx + 1, ty) });
 }
 function drawWater(X: number, Y: number, tx: number, t: number) {
-  rect(X, Y, 16, 16, "#5fa8c8");
-  const o = Math.floor(t / 280 + tx * 3) % 12;
-  rect(X + o, Y + 4, 4, 1, "#9ed3e6");
-  rect(X + ((o + 6) % 12), Y + 10, 3, 1, "#9ed3e6");
+  hiWater(rect, X, Y, tx, t, tileAt(tx, Math.round(Y / TILE) - 1) !== "~");
 }
 function drawSea(X: number, Y: number, tx: number, ty: number) {
   rect(X, Y, 16, 16, "#3b7fae");
@@ -127,25 +114,15 @@ function drawStormWind(X: number, Y: number, tx: number, ty: number, t: number) 
 }
 function drawTree(X: number, Y: number, tx: number, ty: number) {
   drawGrass(X, Y, tx, ty);
-  rect(X + 7, Y + 11, 2, 4, "#6b4a2e");
-  rect(X + 2, Y + 1, 12, 10, "#3e7a3a");
-  rect(X + 1, Y + 3, 14, 6, "#3e7a3a");
-  rect(X + 4, Y + 3, 4, 2, "#5e9e4e");
-  rect(X + 9, Y + 6, 2, 2, "#5e9e4e");
+  hiTree(rect, X, Y);
 }
 function drawFence(X: number, Y: number, tx: number, ty: number) {
   drawGrass(X, Y, tx, ty);
-  rect(X, Y + 7, 16, 2, "#a9845a");
-  rect(X, Y + 11, 16, 1, "#a9845a");
-  rect(X + 2, Y + 5, 2, 9, "#7a5a3a");
-  rect(X + 12, Y + 5, 2, 9, "#7a5a3a");
+  hiFence(rect, X, Y);
 }
 function drawMailbox(X: number, Y: number, tx: number, ty: number, hasUnread: boolean) {
   drawGrass(X, Y, tx, ty);
-  rect(X + 7, Y + 8, 2, 8, "#6b4a2e");
-  rect(X + 4, Y + 3, 8, 6, "#c4473a");
-  rect(X + 4, Y + 3, 8, 1, "#e06a5c");
-  if (hasUnread) { rect(X + 12, Y + 1, 2, 5, "#7a5a3a"); rect(X + 12, Y + 1, 3, 2, "#f2d04b"); }
+  hiMailbox(rect, X, Y, hasUnread);
 }
 /* ---------- 建物 ---------- */
 // 扉は村人1人ぶん（1マス）の大きさで、扉のマスにぴったり収める。X, Y は扉のマスの左上
@@ -160,13 +137,7 @@ function drawDoor(X: number, Y: number, wood: string, frame: string) {
 const doorAt = (X: number, Y: number, dx: number, dy: number) => [X + dx * TILE, Y + dy * TILE] as const;
 
 function drawHouse(X: number, Y: number) {
-  rect(X + 1, Y + 12, 30, 20, "#ead9b5");
-  rect(X, Y, 32, 13, "#b5523b");
-  for (let i = 0; i < 4; i++) rect(X, Y + 3 * i + 1, 32, 1, "#93402d");
-  rect(X + 20, Y + 17, 8, 7, "#7fb6d6");
-  rect(X + 23, Y + 17, 1, 7, "#ead9b5");
-  rect(X + 19, Y + 24, 10, 1, "#a8956f");
-  drawDoor(...doorAt(X, Y, 0, 1), "#7a5235", "#5a3e2b");
+  hiHouse(rect, X, Y);
 }
 function drawCafe(X: number, Y: number) {
   rect(X + 1, Y + 10, 46, 22, "#f3e3c3");
@@ -318,42 +289,17 @@ function drawMound(X: number, Y: number, color = "#6b4226") {
 }
 // 蒔いたばかりの種（まだ誰も水やりしていない）。土の上に、小さな種がのぞいている
 function drawSeed(X: number, Y: number) {
-  drawMound(X, Y);
-  rect(X + 7, Y + 8, 2, 2, "#d9b25a");
-  rect(X + 7, Y + 8, 1, 1, "#f2dc96");
-  rect(X + 8, Y + 9, 1, 1, "#a8833c");
+  hiSeed(rect, X, Y);
 }
-function drawSprout(X: number, Y: number, size: number, pale: boolean) {
-  drawMound(X, Y);
-  const stem = pale ? "#6f9a5a" : "#4f8f3a";
-  const leaf = pale ? "#a8c98f" : "#7cc35a";
-  const h = 3 + size;
-  rect(X + 7, Y + 10 - h, 2, h, stem);
-  rect(X + 4, Y + 10 - h, 3, 2, leaf);
-  rect(X + 9, Y + 9 - h, 3, 2, leaf);
+function drawSprout(X: number, Y: number, _size: number, pale: boolean) {
+  hiSprout(rect, X, Y, pale);
 }
 function drawSparkle(X: number, Y: number, t: number, tx: number) {
-  drawMound(X, Y);
-  if ((Math.floor(t / 380) + tx) % 2 === 0) {
-    rect(X + 8, Y + 4, 1, 4, "#fff6c2");
-    rect(X + 6, Y + 5, 5, 1, "#fff6c2");
-  } else {
-    rect(X + 7, Y + 6, 2, 2, "#fff6c2");
-  }
+  hiSparkle(rect, X, Y, t, tx);
 }
 // 満員（5人が水やり）になった種。村人の優しさで咲いた花
 function drawFlower(X: number, Y: number) {
-  drawMound(X, Y);
-  rect(X + 7, Y + 5, 2, 6, "#4f8f3a");
-  rect(X + 4, Y + 7, 3, 2, "#7cc35a");
-  rect(X + 9, Y + 6, 3, 2, "#7cc35a");
-  // 花びらと、まんなか
-  rect(X + 6, Y + 0, 4, 1, "#f2a7b8");
-  rect(X + 5, Y + 1, 6, 4, "#f2a7b8");
-  rect(X + 6, Y + 5, 4, 1, "#f2a7b8");
-  rect(X + 5, Y + 1, 1, 1, "#e58aa0");
-  rect(X + 10, Y + 4, 1, 1, "#e58aa0");
-  rect(X + 7, Y + 2, 2, 2, "#f6d24a");
+  hiFlower(rect, X, Y);
 }
 
 // 種の育ち具合は3段階だけ見せる（水やりの人数がわからないように）。0回=種、1〜4回=芽、満員=花
@@ -393,60 +339,9 @@ function walkPhase(p: Player, t: number, moving: boolean) {
 
 function drawPlayer(p: Player, t: number) {
   const { fx, fy, moving } = playerPos(p, t);
-  const X = Math.round(fx * TILE), Y = Math.round(fy * TILE);
-  const ph = walkPhase(p, t, moving);
-  const step = ph === 1 || ph === 3;
-  const y = Y + (step ? -1 : 0); // 足を出したコマで体が少し上がる
-  const skin = "#f2c9a0", shoe = "#4a3a2a", shoe2 = "#33281c", shirt = "#3f6fb5", shirt2 = "#5a8ad0", hair = "#6b4a2a";
-  const side = p.dir === "left" || p.dir === "right";
-  const sgn = p.dir === "right" ? 1 : -1;
-  rect(X + 3, Y + 15, 10, 1, "rgba(0,0,0,0.22)");
-  // 足
-  if (side) {
-    if (!step) {
-      rect(X + 6, Y + 13, 2, 2, shoe2);
-      rect(X + 8, Y + 13, 2, 2, shoe);
-    } else {
-      const f = ph === 1 ? 1 : -1; // 前に出る足を入れ替える
-      rect(X + 7 - 2 * sgn * f, Y + 13, 2, 2, shoe2); // 奥の足
-      rect(X + 7 + 2 * sgn * f, Y + 13, 2, 2, shoe); // 手前の足
-      rect(X + 7, Y + 12, 2, 1, shoe);
-    }
-  } else {
-    rect(X + 5, Y + 13 - (ph === 3 ? 1 : 0), 2, 2, shoe);
-    rect(X + 9, Y + 13 - (ph === 1 ? 1 : 0), 2, 2, shoe);
-  }
-  // 体
-  rect(X + 4, y + 8, 8, 5, shirt);
-  rect(X + 4, y + 8, 8, 1, shirt2);
-  // 腕
-  if (side) {
-    const sw = !step ? 0 : (ph === 1 ? 2 : -2) * sgn; // 前後に振る
-    rect(X + 7 + sw, y + 9, 2, 3, shirt2);
-    rect(X + 7 + sw + Math.sign(sw), y + 12, 2, 1, skin);
-  } else {
-    const la = ph === 1 ? 1 : ph === 3 ? -1 : 0; // 左右の腕を交互に
-    rect(X + 3, y + 9 + la, 1, 3, skin);
-    rect(X + 12, y + 9 - la, 1, 3, skin);
-  }
-  // 顔と麦わら帽子
-  rect(X + 5, y + 4, 6, 4, skin);
-  rect(X + 4, y + 1, 8, 3, "#e2c15a");
-  rect(X + 2, y + 3, 12, 1, "#c9a43c");
-  rect(X + 4, y + 3, 8, 1, "#c0392b");
-  if (p.dir === "up") {
-    rect(X + 5, y + 4, 6, 3, hair);
-  } else if (p.dir === "down") {
-    rect(X + 6, y + 5, 1, 1, "#2a2018");
-    rect(X + 9, y + 5, 1, 1, "#2a2018");
-    rect(X + 7, y + 7, 2, 1, "#e0a080");
-  } else if (p.dir === "left") {
-    rect(X + 5, y + 5, 1, 1, "#2a2018");
-    rect(X + 9, y + 4, 2, 3, hair);
-  } else {
-    rect(X + 10, y + 5, 1, 1, "#2a2018");
-    rect(X + 5, y + 4, 2, 3, hair);
-  }
+  // 半ドット（0.5単位）にそろえて、ドットがにじまないようにする
+  const X = Math.round(fx * TILE * 2) / 2, Y = Math.round(fy * TILE * 2) / 2;
+  hiFarmer(rect, X, Y, p.dir, walkPhase(p, t, moving));
 }
 
 /* ---------- 村長（長老） ---------- */
@@ -456,61 +351,10 @@ export const mayorPos = (p: Player, t: number) => playerPos(p, t, MAYOR_MOVE_MS)
 
 function drawMayor(p: Player, t: number) {
   const { fx, fy, moving } = mayorPos(p, t);
-  const X = Math.round(fx * TILE), Y = Math.round(fy * TILE);
-  // 足を出したコマで体が少し上がる。村人よりゆっくり足を運ぶ
+  const X = Math.round(fx * TILE * 2) / 2, Y = Math.round(fy * TILE * 2) / 2;
+  // 村人よりゆっくり足を運ぶ
   const ph = moving ? (1 + Math.floor((t - p.walkStart) / 230)) % 4 : -1;
-  const step = ph === 1 || ph === 3;
-  const y = Y + (step ? -1 : 0);
-  const skin = "#efc39a", robe = "#7a5235", robe2 = "#8f6644", obi = "#c9a43c", white = "#f4f1ea", grey = "#d6d2c8";
-  const side = p.dir === "left" || p.dir === "right";
-  const front = side ? (p.dir === "right" ? 1 : -1) : 0;
-  rect(X + 2, Y + 15, 12, 1, "rgba(0,0,0,0.22)");
-  // 杖（体の手前の手で持つ）
-  const cx = side ? (front > 0 ? X + 13 : X + 2) : X + 13;
-  rect(cx, y + 6, 1, 9, "#6b4a2e");
-  rect(cx - 1, y + 5, 3, 2, "#8a6a48");
-  // 足（草履）
-  rect(X + 5, Y + 14 - (ph === 3 ? 1 : 0), 2, 1, "#3a2e24");
-  rect(X + 9, Y + 14 - (ph === 1 ? 1 : 0), 2, 1, "#3a2e24");
-  // 着物と羽織
-  rect(X + 4, y + 8, 8, 6, robe);
-  rect(X + 4, y + 8, 8, 1, robe2);
-  rect(X + 4, y + 11, 8, 1, obi);
-  if (!side) {
-    rect(X + 7, y + 8, 2, 3, p.dir === "up" ? robe : "#e9e2d0"); // 襟
-  }
-  // 腕
-  if (side) {
-    rect(X + 7 + front, y + 9, 2, 3, robe2);
-    rect(X + 7 + front * 2, y + 11, 2, 1, skin);
-  } else {
-    rect(X + 3, y + 9, 1, 3, robe2);
-    rect(X + 12, y + 9, 1, 3, robe2);
-    rect(X + 12, y + 11, 1, 1, skin);
-  }
-  // 頭：白い髪とひげ
-  rect(X + 5, y + 2, 6, 6, skin);
-  rect(X + 5, y + 1, 6, 2, white); // 頭の上
-  if (p.dir === "up") {
-    rect(X + 5, y + 2, 6, 5, white);
-    rect(X + 5, y + 6, 6, 1, grey);
-  } else if (p.dir === "down") {
-    rect(X + 4, y + 3, 1, 3, white); // 横の髪
-    rect(X + 11, y + 3, 1, 3, white);
-    rect(X + 6, y + 3, 1, 1, white); // 白い眉
-    rect(X + 9, y + 3, 1, 1, white);
-    rect(X + 6, y + 4, 1, 1, "#2a2018");
-    rect(X + 9, y + 4, 1, 1, "#2a2018");
-    rect(X + 6, y + 6, 4, 2, white); // ひげ
-    rect(X + 7, y + 8, 2, 2, white);
-  } else {
-    const fxp = front > 0 ? X + 9 : X + 6; // 顔の向いている側
-    rect(front > 0 ? X + 5 : X + 10, y + 3, 1, 3, white); // 後ろの髪
-    rect(fxp, y + 3, 1, 1, white);
-    rect(fxp, y + 4, 1, 1, "#2a2018");
-    rect(front > 0 ? X + 8 : X + 6, y + 6, 3, 2, white); // ひげ
-    rect(front > 0 ? X + 9 : X + 6, y + 8, 1, 2, white);
-  }
+  hiMayor(rect, X, Y, p.dir, ph);
 }
 
 function drawEffects(t: number) {
@@ -880,7 +724,7 @@ function staticLayer(): SkPicture {
         else if (c === "D") drawDesert(X, Y, x, y);
         else if (c === "W") drawStorm(X, Y);
         else if (c === "." || c === "H") drawGrass(X, Y, x, y);
-        else if (c === ",") drawSoil(X, Y);
+        else if (c === ",") drawSoil(X, Y, x, y);
         else if (c === "P") drawPath(X, Y, x, y);
         else if (c === "T") drawTree(X, Y, x, y);
         else if (c === "F") drawFence(X, Y, x, y);
@@ -936,8 +780,9 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
 
 // 横に約 VIEW_TILES_ACROSS マス見える倍率。ドットがにじまないよう端末の画素に合わせて丸める
 function scaleFor(width: number) {
+  // 1ドット（0.5単位）が端末の画素にぴったり合うよう、倍率を 2/pr 刻みにそろえる
   const pr = PixelRatio.get();
-  return Math.max(1 / pr, Math.round((width / (VIEW_TILES_ACROSS * TILE)) * pr) / pr);
+  return Math.max(2 / pr, Math.round((width / (VIEW_TILES_ACROSS * TILE)) * pr / 2) * 2 / pr);
 }
 
 // 画面いっぱいに敷くマップ。親が大きさを決める（absoluteFill などで置く）

@@ -2,7 +2,7 @@ import { type Href, router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { C } from "@/theme";
+import { C, R } from "@/theme";
 import { T } from "./ui";
 
 // 前の画面の記録がないとき（URL を直接開いた・再読み込みしたなど）の戻り先
@@ -49,16 +49,16 @@ const s = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: C.mossDeep,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(238,242,230,0.25)",
+    borderBottomColor: C.line,
   },
   back: {
-    backgroundColor: C.mossSoft,
-    borderColor: C.moss,
-    borderWidth: 2,
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
-  backText: { fontSize: 15 },
-  title: { fontSize: 17, flexShrink: 1 },
+  backText: { fontSize: 14, fontWeight: "600" },
+  title: { fontSize: 17, fontWeight: "700", flexShrink: 1 },
 });

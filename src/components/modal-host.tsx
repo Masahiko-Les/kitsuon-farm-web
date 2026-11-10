@@ -2,7 +2,7 @@ import { createContext, type ReactNode, useCallback, useContext, useMemo, useSta
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { C } from "@/theme";
+import { C, R, blur, shadow } from "@/theme";
 import { ToastLayer } from "./toast";
 
 type ModalApi = {
@@ -49,17 +49,19 @@ export function ModalHost({ children }: { children: ReactNode }) {
 }
 
 const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(20, 26, 18, 0.72)" },
-  kav: { flex: 1, justifyContent: "center", paddingHorizontal: 12, paddingVertical: 16 },
+  backdrop: { flex: 1, backgroundColor: "rgba(8, 12, 10, 0.55)", ...blur(6) },
+  kav: { flex: 1, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 18 },
   dialog: {
     maxHeight: "100%",
     width: "100%",
     maxWidth: 440,
     alignSelf: "center",
     backgroundColor: C.mossSoft,
-    borderColor: C.mossDeep,
-    borderWidth: 3,
-    borderRadius: 10,
+    borderColor: C.line,
+    borderWidth: 1,
+    borderRadius: R.lg,
+    overflow: "hidden",
+    ...shadow(16, 40, 0.45),
   },
-  body: { padding: 18, paddingBottom: 16 },
+  body: { padding: 22, paddingBottom: 20 },
 });

@@ -5,7 +5,7 @@ import {
 
 import { MAX_CHARS, MAX_LINES } from "@/lib/game";
 import { countContent, measure } from "@/lib/text";
-import { C, F, LINE_H } from "@/theme";
+import { C, F, LINE_H, R, shadow } from "@/theme";
 
 /* ---------- 文字 ---------- */
 export function T({ style, ...props }: TextProps) {
@@ -37,8 +37,8 @@ type BtnKind = "primary" | "water" | "quiet";
 export function Btn({ label, onPress, kind = "primary", disabled, style }: {
   label: string; onPress?: () => void; kind?: BtnKind; disabled?: boolean; style?: StyleProp<ViewStyle>;
 }) {
-  const bg = kind === "primary" ? C.leaf : kind === "water" ? C.water : "transparent";
-  const fg = kind === "quiet" ? C.soft : C.ink;
+  const bg = kind === "primary" ? C.leaf : kind === "water" ? C.water : "rgba(255,255,255,0.06)";
+  const fg = kind === "quiet" ? C.text : C.onLeaf;
   return (
     <Pressable
       accessibilityRole="button"
@@ -46,7 +46,8 @@ export function Btn({ label, onPress, kind = "primary", disabled, style }: {
       disabled={disabled}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: bg, opacity: disabled ? 0.5 : 1 },
+        kind === "quiet" ? s.btnQuiet : shadow(4, 12, 0.25),
+        { backgroundColor: bg, opacity: disabled ? 0.45 : 1 },
         pressed && s.btnPressed,
         style,
       ]}
@@ -141,38 +142,33 @@ export function PaperInput({ placeholder, onChangeText, initial = "", minChars =
 const PAD_TOP = 10;
 
 const s = StyleSheet.create({
-  t: { fontFamily: F.ui, color: C.text, fontSize: 16 },
-  title: { fontSize: 19, color: C.leaf, marginBottom: 10 },
-  body: { fontSize: 15, lineHeight: 24, marginBottom: 12 },
+  t: { fontFamily: F.ui, color: C.text, fontSize: 16, letterSpacing: 0.2 },
+  title: { fontSize: 20, fontWeight: "700", color: C.text, marginBottom: 12, letterSpacing: 0.3 },
+  body: { fontSize: 15, lineHeight: 25, marginBottom: 12, color: C.soft },
   small: { fontSize: 13, lineHeight: 20, color: C.sub, marginTop: 8 },
   error: { fontSize: 14, color: C.error, marginTop: 8 },
-  section: { fontSize: 14, color: C.sub, marginTop: 14, marginBottom: 6 },
-  tips: { marginBottom: 10 },
-  tipRow: { flexDirection: "row", marginBottom: 4 },
-  tipDot: { fontSize: 14, color: C.soft },
+  section: { fontSize: 12, fontWeight: "700", color: C.sub, marginTop: 18, marginBottom: 8, letterSpacing: 1 },
+  tips: { marginBottom: 10, gap: 8 },
+  tipRow: { flexDirection: "row", gap: 8 },
+  tipDot: { fontSize: 14, color: C.leaf, lineHeight: 22 },
   tipText: { fontSize: 14, lineHeight: 22, color: C.soft, flex: 1 },
 
   btn: {
-    borderWidth: 2,
-    borderColor: C.mossDeep,
-    borderRadius: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    shadowColor: C.mossDeep,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
+    borderRadius: R.md,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minWidth: 96,
   },
-  btnPressed: { transform: [{ translateY: 2 }], shadowOffset: { width: 0, height: 1 } },
-  btnText: { fontSize: 15, textAlign: "center" },
+  btnQuiet: { borderWidth: 1, borderColor: C.line },
+  btnPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
+  btnText: { fontSize: 15, fontWeight: "700", textAlign: "center", letterSpacing: 0.4 },
   link: { fontSize: 13, color: C.sub, textDecorationLine: "underline" },
-  actions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 14 },
+  actions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 18 },
   links: { flexDirection: "row", gap: 16, marginTop: 16, flexWrap: "wrap" },
 
   paper: {
     backgroundColor: C.paper,
-    borderRadius: 4,
+    borderRadius: R.sm,
     paddingHorizontal: 14,
     paddingTop: PAD_TOP,
     paddingBottom: 12,
