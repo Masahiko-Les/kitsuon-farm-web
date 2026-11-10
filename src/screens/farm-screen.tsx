@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FarmMap, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
+import { FarmMap, MAYOR_MOVE_MS, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
 import { useModal } from "@/components/modal-host";
 import { SwipeArea } from "@/components/swipe-walk";
 import { useToast } from "@/components/toast";
@@ -17,7 +17,7 @@ import { useFarm } from "@/state/farm";
 import { C } from "@/theme";
 
 // go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
-type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit"; seat?: { x: number; y: number } };
+type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "mayor"; seat?: { x: number; y: number } };
 
 const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
   house: {
@@ -47,6 +47,11 @@ const DOOR_HINTS: Record<RoomId, string> = {
   cafe: "カフェの入り口だ。コーヒーのいい香りがする。",
   hall: "村役場の入り口だ。",
 };
+// 村長が歩き始める場所（村の北の道）と、1回ごとに立ち止まって休む確率
+const MAYOR_START = { x: 10, y: 4 };
+const MAYOR_REST = 0.3;
+const REVERSE: Record<Dir, Dir> = { up: "down", down: "up", left: "right", right: "left" };
+
 const doorOf = (id: RoomId) => BUILDINGS.find((b) => b.id === id)!.door;
 const isRoom = (a: Area): a is RoomId => a !== "farm";
 
@@ -95,11 +100,13 @@ export function FarmScreen() {
   const sceneRef = useRef<Scene>({
     area: "farm",
     player: { x: 8, y: 9, dir: "down", fromX: 8, fromY: 9, moveStart: 0, walkStart: 0, walkUntil: 0 } satisfies Player,
+    mayor: { ...MAYOR_START, dir: "down", fromX: MAYOR_START.x, fromY: MAYOR_START.y, moveStart: 0, walkStart: 0, walkUntil: 0 },
     seeds: [],
     kindOf: () => null,
     hasUnread: false,
   });
   const hasUnread = farm.unreadCount > 0;
+
   useEffect(() => {
     Object.assign(sceneRef.current, { seeds: visibleSeeds, kindOf, hasUnread });
   }, [visibleSeeds, kindOf, hasUnread]);
@@ -107,6 +114,43 @@ export function FarmScreen() {
   /* ---------- 移動 ---------- */
   const modalOpen = useRef(modal.isOpen);
   useEffect(() => { modalOpen.current = modal.isOpen; }, [modal.isOpen]);
+
+  /* ---------- 村長：道に沿ってゆっくり歩く ---------- */
+  // 立っているマス（話しかけるときの判定に使う）
+  const [mayorAt, setMayorAt] = useState(MAYOR_START);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const stepOnce = () => {
+      const sc = sceneRef.current;
+      const m = sc.mayor;
+      // 話しているあいだ（モーダルが開いている）は立ち止まる。ときどき立ち止まって休む
+      if (!modalOpen.current && Math.random() > MAYOR_REST) {
+        const p = sc.player;
+        const free = (Object.keys(DIRS) as Dir[]).filter((d) => {
+          const [dx, dy] = DIRS[d];
+          const nx = m.x + dx, ny = m.y + dy;
+          const playerHere = sc.area === "farm" && nx === p.x && ny === p.y;
+          return tileAt(nx, ny) === "P" && !playerHere;
+        });
+        const back = REVERSE[m.dir];
+        const ahead = free.filter((d) => d !== back);
+        // 同じ向きに歩き続けやすく、行き止まりでは引き返す
+        const dir = ahead.includes(m.dir) && Math.random() < 0.6
+          ? m.dir
+          : (ahead.length ? ahead : free)[Math.floor(Math.random() * (ahead.length ? ahead : free).length)];
+        if (dir) {
+          const [dx, dy] = DIRS[dir];
+          const now = performance.now();
+          Object.assign(m, { fromX: m.x, fromY: m.y, x: m.x + dx, y: m.y + dy, dir, moveStart: now, walkStart: now, walkUntil: now + MAYOR_MOVE_MS });
+          setMayorAt({ x: m.x, y: m.y });
+        }
+      }
+      timer = setTimeout(stepOnce, 2000 + Math.random() * 1200);
+    };
+    timer = setTimeout(stepOnce, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
 
   // 農場と建物の中を行き来する。歩かずに、その場に立たせる
   const warp = useCallback((area: Area, x: number, y: number, dir: Dir) => {
@@ -140,6 +184,8 @@ export function FarmScreen() {
       if (c === "E") { leaveRoom(); return; }
       if (!ROOMS[area].walkable.has(c)) { setPos({ x: p.x, y: p.y, dir, area }); return; }
     } else {
+      // 村長のいるマス（向かっている先も）には入れない
+      if (nx === sc.mayor.x && ny === sc.mayor.y) { setPos({ x: p.x, y: p.y, dir, area: "farm" }); return; }
       // 入れる建物の扉へ歩くと中に入る
       const b = buildingAt(nx, ny);
       if (b && b.enterable && b.door.x === nx && b.door.y === ny) { enterRoom(b.id as RoomId); return; }
@@ -197,6 +243,9 @@ export function FarmScreen() {
       if (h) return { label: "…", hint: h, run: null };
       return { label: "…", hint: ROOM_IDLE[room], run: null };
     }
+    if (pos.x + dx === mayorAt.x && pos.y + dy === mayorAt.y) {
+      return { label: "話す", hint: "村長だ。村のことを、いつも見守っている。", run: null, go: "mayor" };
+    }
     if (tileAt(pos.x + dx, pos.y + dy) === "M") {
       return { label: "開く", hint: "郵便受けだ。", run: a.showMailbox };
     }
@@ -242,7 +291,11 @@ export function FarmScreen() {
   const canPress = !!action.run || !!action.go;
   const pressA = () => {
     if (modal.isOpen) return;
-    if (action.go === "sit" && action.seat) { warp("cafe", action.seat.x, action.seat.y, "up"); openCafe(); }
+    if (action.go === "mayor") {
+      // 村長が村人のほうを向いて、返事をする
+      sceneRef.current.mayor.dir = REVERSE[sceneRef.current.player.dir];
+      a.showMayor();
+    } else if (action.go === "sit" && action.seat) { warp("cafe", action.seat.x, action.seat.y, "up"); openCafe(); }
     else if (action.go === "leave") leaveRoom();
     else if (action.go && action.go !== "sit") enterRoom(action.go);
     else action.run?.();

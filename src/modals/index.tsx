@@ -50,6 +50,7 @@ export function useActions() {
     showBook: () => modal.open(<BookModal />),
     showBulletin: () => modal.open(<BulletinModal />),
     showClerk: () => modal.open(<ClerkModal />),
+    showMayor: () => modal.open(<MayorModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
     showSupport: (kind: SupportKind, onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
   };
@@ -490,6 +491,18 @@ function BulletinModal() {
         </View>
       ))}
       <Small>{BULLETIN_NOTE}</Small>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+// 村のマップを歩いている村長（長老）
+function MayorModal() {
+  const a = useActions();
+  return (
+    <>
+      <Title>村長</Title>
+      <Body>村長「よう元気か」</Body>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );

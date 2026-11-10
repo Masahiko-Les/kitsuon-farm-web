@@ -34,6 +34,7 @@ export type Effect = { type: "water" | "sow"; x: number; y: number; start: numbe
 export type Scene = {
   area: Area;
   player: Player;
+  mayor: Player; // 村のマップを道に沿ってゆっくり歩く村長
   seeds: Seed[];
   kindOf: (s: Seed) => SeedKind;
   hasUnread: boolean;
@@ -366,8 +367,8 @@ function drawStage(X: number, Y: number, stage: Stage, pale = false) {
 
 /* ---------- 村人 ---------- */
 // 歩いている途中も含めた、村人の今の位置（マス単位）。着く手前でゆっくりになる
-export function playerPos(p: Player, t: number) {
-  const k = Math.min(1, Math.max(0, (t - p.moveStart) / MOVE_MS));
+export function playerPos(p: Player, t: number, ms = MOVE_MS) {
+  const k = Math.min(1, Math.max(0, (t - p.moveStart) / ms));
   const e = 1 - (1 - k) * (1 - k);
   return { fx: p.fromX + (p.x - p.fromX) * e, fy: p.fromY + (p.y - p.fromY) * e, moving: k < 1 };
 }
@@ -445,6 +446,70 @@ function drawPlayer(p: Player, t: number) {
   } else {
     rect(X + 10, y + 5, 1, 1, "#2a2018");
     rect(X + 5, y + 4, 2, 3, hair);
+  }
+}
+
+/* ---------- 村長（長老） ---------- */
+// 1マス歩くのにかける時間。村人よりずっとゆっくり
+export const MAYOR_MOVE_MS = 700;
+export const mayorPos = (p: Player, t: number) => playerPos(p, t, MAYOR_MOVE_MS);
+
+function drawMayor(p: Player, t: number) {
+  const { fx, fy, moving } = mayorPos(p, t);
+  const X = Math.round(fx * TILE), Y = Math.round(fy * TILE);
+  // 足を出したコマで体が少し上がる。村人よりゆっくり足を運ぶ
+  const ph = moving ? (1 + Math.floor((t - p.walkStart) / 230)) % 4 : -1;
+  const step = ph === 1 || ph === 3;
+  const y = Y + (step ? -1 : 0);
+  const skin = "#efc39a", robe = "#7a5235", robe2 = "#8f6644", obi = "#c9a43c", white = "#f4f1ea", grey = "#d6d2c8";
+  const side = p.dir === "left" || p.dir === "right";
+  const front = side ? (p.dir === "right" ? 1 : -1) : 0;
+  rect(X + 2, Y + 15, 12, 1, "rgba(0,0,0,0.22)");
+  // 杖（体の手前の手で持つ）
+  const cx = side ? (front > 0 ? X + 13 : X + 2) : X + 13;
+  rect(cx, y + 6, 1, 9, "#6b4a2e");
+  rect(cx - 1, y + 5, 3, 2, "#8a6a48");
+  // 足（草履）
+  rect(X + 5, Y + 14 - (ph === 3 ? 1 : 0), 2, 1, "#3a2e24");
+  rect(X + 9, Y + 14 - (ph === 1 ? 1 : 0), 2, 1, "#3a2e24");
+  // 着物と羽織
+  rect(X + 4, y + 8, 8, 6, robe);
+  rect(X + 4, y + 8, 8, 1, robe2);
+  rect(X + 4, y + 11, 8, 1, obi);
+  if (!side) {
+    rect(X + 7, y + 8, 2, 3, p.dir === "up" ? robe : "#e9e2d0"); // 襟
+  }
+  // 腕
+  if (side) {
+    rect(X + 7 + front, y + 9, 2, 3, robe2);
+    rect(X + 7 + front * 2, y + 11, 2, 1, skin);
+  } else {
+    rect(X + 3, y + 9, 1, 3, robe2);
+    rect(X + 12, y + 9, 1, 3, robe2);
+    rect(X + 12, y + 11, 1, 1, skin);
+  }
+  // 頭：白い髪とひげ
+  rect(X + 5, y + 2, 6, 6, skin);
+  rect(X + 5, y + 1, 6, 2, white); // 頭の上
+  if (p.dir === "up") {
+    rect(X + 5, y + 2, 6, 5, white);
+    rect(X + 5, y + 6, 6, 1, grey);
+  } else if (p.dir === "down") {
+    rect(X + 4, y + 3, 1, 3, white); // 横の髪
+    rect(X + 11, y + 3, 1, 3, white);
+    rect(X + 6, y + 3, 1, 1, white); // 白い眉
+    rect(X + 9, y + 3, 1, 1, white);
+    rect(X + 6, y + 4, 1, 1, "#2a2018");
+    rect(X + 9, y + 4, 1, 1, "#2a2018");
+    rect(X + 6, y + 6, 4, 2, white); // ひげ
+    rect(X + 7, y + 8, 2, 2, white);
+  } else {
+    const fxp = front > 0 ? X + 9 : X + 6; // 顔の向いている側
+    rect(front > 0 ? X + 5 : X + 10, y + 3, 1, 3, white); // 後ろの髪
+    rect(fxp, y + 3, 1, 1, white);
+    rect(fxp, y + 4, 1, 1, "#2a2018");
+    rect(front > 0 ? X + 8 : X + 6, y + 6, 3, 2, white); // ひげ
+    rect(front > 0 ? X + 9 : X + 6, y + 8, 1, 2, white);
   }
 }
 
@@ -861,7 +926,10 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
       else if (kind === "open" && Math.abs(s.x - px) + Math.abs(s.y - py) <= 2) drawSparkle(X, Y, t, s.x);
     }
     drawEffects(t);
-    drawPlayer(scene.player, t);
+    // 村長と村人は、手前（下）にいるほうをあとに描く
+    const mayorY = mayorPos(scene.mayor, t).fy, playerY = playerPos(scene.player, t).fy;
+    if (mayorY <= playerY) { drawMayor(scene.mayor, t); drawPlayer(scene.player, t); }
+    else { drawPlayer(scene.player, t); drawMayor(scene.mayor, t); }
     canvas.restore();
   }, { width: v.w, height: v.h });
 }
