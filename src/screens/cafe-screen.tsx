@@ -6,6 +6,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GUEST_LOOKS } from "@/components/animals";
+import { goBack } from "@/components/app-header";
 import { CafeScene } from "@/components/cafe-scene";
 import { useToast } from "@/components/toast";
 import { Actions, Btn, ErrorText, LinkBtn, Links, Paper, PaperInput, Small, T } from "@/components/ui";
@@ -390,7 +391,7 @@ function EndStep({ step, onAgain }: { step: Extract<Step, { kind: "end" }>; onAg
       <Speech>{lines.join("\n")}</Speech>
       <Actions>
         <Btn kind="quiet" label="ほかのテーマで話す" onPress={onAgain} />
-        <Btn label="カフェにもどる" onPress={() => router.back()} />
+        <Btn label="カフェにもどる" onPress={() => goBack("cafe")} />
       </Actions>
       <Links><LinkBtn label="わたしの言葉を見る" onPress={() => router.push("/cafe-mine")} /></Links>
     </>

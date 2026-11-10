@@ -9,6 +9,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/app-header";
 import { ModalHost } from "@/components/modal-host";
 import { Splash } from "@/components/splash";
 import { ToastProvider } from "@/components/toast";
@@ -37,6 +38,8 @@ export default function RootLayout() {
               <View style={s.column}>
               <Stack
                 screenOptions={{
+                  // すべての画面の上の帯に「戻る」を出す（農場のマップは headerShown: false）
+                  header: ({ options, route }) => <AppHeader title={options.title ?? ""} screen={route.name} />,
                   headerStyle: { backgroundColor: C.mossDeep },
                   headerTintColor: C.text,
                   headerTitleStyle: { fontFamily: F.ui },
