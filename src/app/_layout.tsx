@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ModalHost } from "@/components/modal-host";
+import { Splash } from "@/components/splash";
 import { ToastProvider } from "@/components/toast";
 import { FarmProvider } from "@/state/farm";
 import { C, F } from "@/theme";
@@ -23,7 +24,8 @@ export default function RootLayout() {
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
 
-  if (!loaded && !error) return null;
+  // フォントを読み込むあいだは、起動画面（index.html と同じ見た目）を出し続ける
+  if (!loaded && !error) return <Splash />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.moss }}>

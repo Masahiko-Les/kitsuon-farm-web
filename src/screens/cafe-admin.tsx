@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
@@ -122,12 +123,18 @@ export function CafeAdmin() {
   };
 
   if (!isAdmin) {
-    return <View style={s.center}><Small>この画面は運営だけが使えます。</Small></View>;
+    return (
+      <View style={{ flex: 1 }}>
+        <BackBar />
+        <View style={s.center}><Small>この画面は運営だけが使えます。</Small></View>
+      </View>
+    );
   }
 
   const loading = pending === null || review === null || reports === null;
   return (
     <View style={{ flex: 1 }}>
+      <BackBar />
       <View style={s.tabs}>
         <TabBtn label={`承認待ち${pending ? `（${pending.length}）` : ""}`} on={tab === "pending"} onPress={() => setTab("pending")} />
         <TabBtn label={`要確認${review ? `（${review.length}）` : ""}`} on={tab === "review"} onPress={() => setTab("review")} />
@@ -211,7 +218,36 @@ function TabBtn({ label, on, onPress }: { label: string; on: boolean; onPress: (
   );
 }
 
+// 最上部の「戻る」。前の画面（設定）があればそこへ、URL を直接開いたときは設定画面へ
+function BackBar() {
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/settings"));
+  return (
+    <View style={s.backBar}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="戻る"
+        onPress={back}
+        hitSlop={6}
+        style={({ pressed }) => [s.backBtn, pressed && { backgroundColor: C.mossDeep }]}
+      >
+        <T style={s.backText}>‹ 戻る</T>
+      </Pressable>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  backBar: { paddingHorizontal: 16, paddingTop: 12, width: "100%", maxWidth: 480, alignSelf: "center" },
+  backBtn: {
+    alignSelf: "flex-start",
+    backgroundColor: C.mossSoft,
+    borderColor: C.mossDeep,
+    borderWidth: 2,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  backText: { fontSize: 15 },
   wrap: { padding: 16, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   error: { color: C.error, marginBottom: 12 },

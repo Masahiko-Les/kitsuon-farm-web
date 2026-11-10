@@ -28,6 +28,44 @@
       textarea:focus {
         outline: none;
       }
+      /* 起動画面：アプリが動き出す前（描画エンジンとプログラムの読み込み中）に出す。
+         「吃音村」と点だけを DotGothic16 から抜き出したフォント（約1KB）を埋め込んでいる。
+         アプリが動き出したあとも src/components/splash.tsx が同じ見た目で引き継ぐ */
+      @font-face {
+        font-family: "KitsuonSplash";
+        src: url(data:font/woff2;base64,d09GMgABAAAAAAPAABAAAAAAB9wAAANqAAEZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGYFWGyAcRgZgAFQRCAqDaIMtATYCJAMYCxIABCAFg2AHIBckGB4beAZRVFD+Qvw8jI2ZRw+xJdrF2o83wlRFJRo05vV4eNuvr3NfVVN19wBQ/GgkRUTxP6PGsVAEFniF2awijP963tZaZp/HA2IBWe8R5Q9IqTpbJ5rziPp+3357pHnJ4oOkvcSVUqjUB42dhIdMxhOH5ElS1K/696dqvmVrgN5FPGAJaETW6FwW6sBtawHHvN1WmsDFYLmiBWmRqm5qVfSQYZmmKXXg8Sx0Am2HMWKay1Y8fkL3QGhpsHvE4lXYPUoNGbonqEGhe5I6BuxKgEo2RVPXUAIkWc8waXmkfirSWqQeEPXfsjFixw4ITFp0fjPhbyzUjZCE2dhnnD12IigmqSJhjqVkqGuAIj3FGMXxuHzeWUohEPIStZubGkL1OpzTt7itQXWr2gqslbWx2zKWgarqUC7avpUVWx4+4FT9jnS27pEHYhoQUE1KI4FpEqiQMEpUYJSYRUBPWyWbZroxemTdr7oGeK3+o/7xSdx9c3QYQkIYoq4V0AbDgCF4hLeADCA0ZAmRR7XbOY9o5hnThrXzlq6yox8lSvSjq68o+oadId3o6do4tCrRU46Iu29WTnSj6UTVdEo53M9F2ZJKta8bme9FX4n0XZK9KAbBK+KB9UUjSlUSOXWq4WtY3SxOGIy9G3CjFjHp6BOY8muBwCtdtdpW9YpBeTWLS8CJOgL7enGnMYR+XERDGizPDR3XxkmAYFjdAc31U96t8u5UXLFZ7UdnRxErID0WTDW16YwMA1Xci6vVx+psuu+a8l8Jv5rWev29+ttqSxCiq5heVi+IhTCnZ9PzOm92EqV6MBV0NirLd40YmTn5rwECMb7/t5Mb5fC8z3bXe4Wf98MHP/+z5N+lLl3TWTRVIMgD338n/U99+l9QN8PVmzHIbLIw/W9qew8PEAXaXhmlLHKLzkDLdlGRO/jAFsIYf1AZ4idI5vmHbE5Mg4YJseKypjmx1wW0EbLIRBJH3dK8lOo+QcQ3X0KOm+dSiYy1sK3ulQUpeCxH3RmXdBmy2Or6JA7Hhm3fzIxITo+7GFMspJsRIIPDhywq2wQOYpsdIcjMwPiJvOOJXBrKsjC1MDd34NqPBx8OnFdM+iREoXrlG//RfTJkqAs6i0CZKJWtH5qrP4Yhg9976f/rJSZQyzHxdBavfmBNScYgnHYC) format("woff2");
+        font-display: block;
+      }
+      .splash {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #2e3a2b;
+        font-family: "KitsuonSplash", monospace;
+      }
+      .splash-title {
+        font-size: 44px;
+        letter-spacing: 6px;
+        color: #eef2e6;
+      }
+      .splash-dots {
+        margin-top: 8px;
+        font-size: 44px;
+        line-height: 1;
+        color: #9cc86a;
+        white-space: pre;
+      }
+      .splash-dots::after {
+        content: ".  ";
+        animation: splash-dots 1.2s steps(1) infinite;
+      }
+      @keyframes splash-dots {
+        0% { content: ".  "; }
+        33.33% { content: " . "; }
+        66.66% { content: ". ."; }
+      }
       #root {
         display: flex;
         height: 100%;
@@ -38,6 +76,11 @@
 
   <body>
     <noscript>吃音村を遊ぶには JavaScript を有効にしてください。</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <div class="splash" role="status" aria-label="吃音村を読み込んでいます">
+        <div class="splash-title">吃音村</div>
+        <div class="splash-dots" aria-hidden="true"></div>
+      </div>
+    </div>
   </body>
 </html>

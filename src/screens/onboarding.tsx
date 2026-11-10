@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Splash } from "@/components/splash";
 import { Actions, Body, Btn, ErrorText, SectionLabel, Small, T, Tips, Title } from "@/components/ui";
 import { NAME_MAX } from "@/lib/game";
 import { GUIDELINES, TERMS } from "@/lib/terms";
@@ -22,6 +23,8 @@ function Frame({ children }: { children: ReactNode }) {
 }
 
 export function LoadingScreen({ message }: { message?: string }) {
+  // ログインと村人情報の読み込み中は、起動画面をそのまま続ける
+  if (!message) return <Splash />;
   return (
     <SafeAreaView style={[s.root, s.center]}>
       {message ? <Body style={{ textAlign: "center", paddingHorizontal: 24 }}>{message}</Body> : <ActivityIndicator color={C.leaf} />}
