@@ -35,6 +35,7 @@ type FarmState = {
   hideSeed: (id: string) => void;
   markThanksSeen: (id: string) => void;
   deleteAllData: () => Promise<void>;
+  refresh: () => void; // 自分で書き込んだあと、Realtime の通知を待たずに一覧を読み直す
 };
 
 const FarmContext = createContext<FarmState | null>(null);
@@ -67,6 +68,8 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [blocked, setBlocked] = useState(new Set<string>());
   const [hiddenSeeds, setHiddenSeeds] = useState(new Set<string>());
   const [seenThanks, setSeenThanks] = useState(new Set<string>());
+  const refreshRef = useRef<() => void>(() => {});
+  const refresh = useCallback(() => refreshRef.current(), []);
   const blockedRef = useRef(blocked);
   useEffect(() => { blockedRef.current = blocked; }, [blocked]);
 
@@ -176,38 +179,40 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     };
     type Key = keyof typeof loaders;
     const timers = new Map<Key, ReturnType<typeof setTimeout>>();
-    const refresh = (k: Key) => {
+    const reload = (k: Key) => {
       clearTimeout(timers.get(k));
       timers.set(k, setTimeout(() => { loaders[k]().catch((e) => console.error(k, e)); }, 150));
     };
-    const refreshAll = () => (Object.keys(loaders) as Key[]).forEach(refresh);
+    const refreshAll = () => (Object.keys(loaders) as Key[]).forEach(reload);
+    refreshRef.current = refreshAll;
     refreshAll();
 
     const channel = supabase.channel(`farm-${uid}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "seeds" }, () => {
-        refresh("publicSeeds");
-        refresh("mySeeds");
+        reload("publicSeeds");
+        reload("mySeeds");
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "letters", filter: `to_uid=eq.${uid}` }, (p) => {
         if (p.eventType === "INSERT" && !blockedRef.current.has((p.new as { from_uid: string }).from_uid)) {
           toast("郵便受けに手紙が届きました。");
         }
-        refresh("letters");
+        reload("letters");
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `sower_uid=eq.${uid}` }, () => refresh("crops"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `sower_uid=eq.${uid}` }, () => reload("crops"))
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `waterer_uid=eq.${uid}` }, (p) => {
         if (p.eventType === "INSERT") {
           const c = p.new as { sower_name: string; crop_type: string };
           toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が実りました。`);
         }
-        refresh("crops");
+        reload("crops");
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "blocks", filter: `owner_uid=eq.${uid}` }, () => refresh("blocks"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "blocks", filter: `owner_uid=eq.${uid}` }, () => reload("blocks"))
       // つながった（つながり直した）ときは、そのあいだの変化を取りこぼさないように全部読み直す
       .subscribe((status) => { if (status === "SUBSCRIBED") refreshAll(); });
 
     return () => {
       alive = false;
+      refreshRef.current = () => {};
       timers.forEach((t) => clearTimeout(t));
       supabase.removeChannel(channel);
       setPublicSeeds(new Map());
@@ -229,7 +234,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const value: FarmState = {
     phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
-    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData,
+    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, refresh,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
 }

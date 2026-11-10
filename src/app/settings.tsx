@@ -23,7 +23,9 @@ export default function Settings() {
     if (!ok) return;
     setBusy(true);
     try {
+      // 農場から開いたときは農場へ戻る。URL を直接開いたときは、トップ（名前登録）へ移る
       if (router.canDismiss()) router.dismissAll();
+      else router.replace("/");
       await deleteAllData();
       toast("すべてのデータを削除しました。");
     } catch (e) {

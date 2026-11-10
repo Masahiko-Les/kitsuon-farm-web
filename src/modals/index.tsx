@@ -56,7 +56,7 @@ export function useActions() {
    種を蒔く
    ========================================================= */
 function SowModal({ x, y }: { x: number; y: number }) {
-  const { uid, name } = useFarm();
+  const { uid, name, refresh } = useFarm();
   const a = useActions();
   const toast = useToast();
   const text = useRef("");
@@ -70,6 +70,7 @@ function SowModal({ x, y }: { x: number; y: number }) {
     setErr("");
     try {
       await sowSeed(uid, name, x, y, text.current.trim(), res.crisis ? "review" : "public");
+      refresh();
       if (res.crisis) {
         a.showSupport("seed");
       } else {
@@ -151,13 +152,13 @@ function WateredSeedModal({ seed }: { seed: Seed }) {
    種を見つけて水やり
    ========================================================= */
 function SeedModal({ seed, text }: { seed: Seed; text: string }) {
-  const { uid, hideSeed } = useFarm();
+  const { uid, hideSeed, refresh } = useFarm();
   const a = useActions();
   const toast = useToast();
 
   const report = async () => {
     if (!(await confirm("この種を通報しますか？　あなたの画面からは見えなくなり、運営が確認します。", "通報する", true))) return;
-    try { await reportSeed(uid, seed.id); } catch (e) { console.error(e); }
+    try { await reportSeed(uid, seed.id); refresh(); } catch (e) { console.error(e); }
     hideSeed(seed.id);
     a.close();
     toast("通報しました。運営が確認します。");
@@ -190,7 +191,7 @@ function Details({ summary, children }: { summary: string; children: ReactNode }
 }
 
 function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedText: string; initial?: string }) {
-  const { uid, name } = useFarm();
+  const { uid, name, refresh } = useFarm();
   const a = useActions();
   const modal = useModal();
   const toast = useToast();
@@ -210,6 +211,7 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
     setErr("");
     try {
       await waterSeed(uid, name, seed, seedText, text.current.trim());
+      refresh();
       a.close();
       addEffect("water", seed.x, seed.y);
       toast(`水やりしました。手紙は${seed.ownerName}さんに届きました。`);
@@ -331,15 +333,15 @@ function cropForLetter(crops: CropDoc[], letterId: string) {
 }
 
 function LetterModal({ letter: initialLetter }: { letter: Letter }) {
-  const { uid, name, letters, crops } = useFarm();
+  const { uid, name, letters, crops, refresh } = useFarm();
   const a = useActions();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const letter = letters.find((l) => l.id === initialLetter.id) ?? initialLetter;
 
   useEffect(() => {
-    if (initialLetter.status === "unread") markRead(initialLetter).catch((e) => console.error(e));
-  }, [initialLetter]);
+    if (initialLetter.status === "unread") markRead(initialLetter).then(refresh).catch((e) => console.error(e));
+  }, [initialLetter, refresh]);
 
   const thanked = letter.status === "thanked";
   const crop = thanked ? cropForLetter(crops, letter.id) : null;
@@ -351,6 +353,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
       const sameSeed = crops.find((x) => x.seedId === letter.seedId && x.sowerUid === uid);
       const c = sameSeed ? cropById(sameSeed.cropType) : randomCrop();
       await sayThanks(uid, name, letter, c.id);
+      refresh();
       a.showHarvest(letter, c);
     } catch (e) {
       setBusy(false);
@@ -363,6 +366,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
     if (!(await confirm("この手紙を通報しますか？　郵便受けから消え、運営が確認します。", "通報する", true))) return;
     try {
       await reportLetter(uid, letter);
+      refresh();
       a.close();
       toast("通報しました。運営が確認します。");
     } catch (e) {
@@ -375,6 +379,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
     if (!(await confirm(`${letter.fromName}さんをブロックしますか？　この人からの手紙は届かなくなります。`, "ブロックする", true))) return;
     try {
       await blockUser(uid, letter.fromUid);
+      refresh();
       a.close();
       toast(`${letter.fromName}さんをブロックしました。`);
     } catch (e) {

@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 // Supabase の Project Settings > API（または Connect）で表示される値に置き換えてください。
 // この2つは公開されても問題ありません（守りは supabase/migrations の RLS で行います）。
-export const SUPABASE_URL = "YOUR_SUPABASE_URL";
-export const SUPABASE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+export const SUPABASE_URL = "https://lkxfzdrfjuawwvfortlz.supabase.co";
+export const SUPABASE_KEY = "sb_publishable_8pnW0Hy75EOiwELSBa4Q2Q_HPG_vFrp";
 
 // 未入力のあいだは、保存なしでマップとカフェだけ歩ける（おためしモード）
 export const isConfigured = !SUPABASE_URL.startsWith("YOUR_") && !SUPABASE_KEY.startsWith("YOUR_");
