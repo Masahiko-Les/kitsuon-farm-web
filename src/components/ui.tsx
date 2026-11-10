@@ -98,17 +98,23 @@ export function Paper({ text, from, minLines = 3 }: { text: string; from?: strin
 }
 
 // 書くための便箋。10行ぶんの罫線を引いておく。
-export function PaperInput({ placeholder, onChangeText, initial = "", minChars = 0 }: {
-  placeholder: string; onChangeText: (t: string) => void; initial?: string; minChars?: number;
+// maxLines を null にすると行数の制限をなくし（種は文字数だけ）、書いた量に合わせて便箋が伸びる
+export function PaperInput({ placeholder, onChangeText, initial = "", minChars = 0, maxLines = MAX_LINES }: {
+  placeholder: string; onChangeText: (t: string) => void; initial?: string; minChars?: number; maxLines?: number | null;
 }) {
   const [text, setText] = useState(initial);
+  const [rows, setRows] = useState(MAX_LINES);
   const { lines, chars } = measure(text);
   const short = minChars - countContent(text);
-  const over = lines > MAX_LINES || chars > MAX_CHARS;
+  const over = (maxLines !== null && lines > maxLines) || chars > MAX_CHARS;
+  const counter = maxLines === null
+    ? `${chars} / ${MAX_CHARS}文字`
+    : `${lines} / ${maxLines}行　${chars} / ${MAX_CHARS}文字`;
+  const grow = maxLines === null;
   return (
     <>
       <View style={s.paper}>
-        <Rules count={MAX_LINES} top={PAD_TOP} />
+        <Rules count={grow ? rows : MAX_LINES} top={PAD_TOP} />
         {/* 日本語入力が崩れないよう、value は渡さない */}
         <TextInput
           multiline
@@ -117,13 +123,16 @@ export function PaperInput({ placeholder, onChangeText, initial = "", minChars =
           placeholderTextColor="#9b9384"
           accessibilityLabel={placeholder}
           onChangeText={(t) => { setText(t); onChangeText(t); }}
+          onContentSizeChange={grow
+            ? (e) => setRows(Math.max(MAX_LINES, Math.ceil(e.nativeEvent.contentSize.height / LINE_H)))
+            : undefined}
           scrollEnabled={false}
           textAlignVertical="top"
-          style={s.paperInput}
+          style={[s.paperInput, grow && { height: rows * LINE_H }]}
         />
       </View>
       <T style={[s.counter, over && { color: C.over }]}>
-        {`${lines} / ${MAX_LINES}行　${chars} / ${MAX_CHARS}字${short > 0 ? `　（あと${short}字）` : ""}`}
+        {`${counter}${short > 0 ? `　（あと${short}文字）` : ""}`}
       </T>
     </>
   );

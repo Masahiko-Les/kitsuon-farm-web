@@ -11,16 +11,16 @@ export const countContent = (text: string) => [...text.replace(/\s/g, "")].lengt
 // filtered は、NGワードか連絡先で止めたときの印（カフェでは危機的な言葉を優先するのに使う）
 export type TextCheck = { ok?: true; error?: string; crisis: boolean; filtered?: true };
 
-// 送信前に必ず通す。
-export function checkText(text: string, minChars = 0): TextCheck {
+// 送信前に必ず通す。maxLines を null にすると行数は数えない（種は文字数だけで決める）
+export function checkText(text: string, minChars = 0, maxLines: number | null = MAX_LINES): TextCheck {
   const trimmed = text.trim();
   const { lines, chars } = measure(text);
   const crisis = CRISIS_WORDS.some((w) => text.includes(w));
   if (!trimmed) return { error: "何か書いてから送ってください。", crisis };
   const content = countContent(text);
-  if (content < minChars) return { error: `${minChars}字以上で書いてください（いま${content}字）。`, crisis };
-  if (lines > MAX_LINES) return { error: `${MAX_LINES}行以内にしてください（いま${lines}行）。`, crisis };
-  if (chars > MAX_CHARS) return { error: `${MAX_CHARS}字以内にしてください（いま${chars}字）。`, crisis };
+  if (content < minChars) return { error: `${minChars}文字以上で書いてください（いま${content}文字）。`, crisis };
+  if (maxLines !== null && lines > maxLines) return { error: `${maxLines}行以内にしてください（いま${lines}行）。`, crisis };
+  if (chars > MAX_CHARS) return { error: `${MAX_CHARS}文字以内にしてください（いま${chars}文字）。`, crisis };
   if (NG_WORDS.some((w) => text.includes(w))) {
     return { error: "相手を傷つけるおそれのある言葉が含まれています。言い換えてください。", crisis, filtered: true };
   }
