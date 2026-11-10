@@ -12,6 +12,13 @@
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
 - `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。
 
+### 地図の絵（Web版だけ。2026年11月に描き直した）
+- 茂った木々・あたたかい光・青緑の影の雰囲気。1マス16ドットのまま。色は `src/components/palette.ts`。
+- 動かない絵は1ドットずつ `PixMap`（`src/components/pixmap.ts`）に描き、1枚の画像にして使い回す：地面・木・柵・家は `forest.ts`、海・砂漠・建物・港は `village.ts`、建物の中の床と壁は `rooms.ts`。
+- 木の葉は行ごとの層にして、木の奥（上の行）にいる村人・村長より手前に重ねる（`farm-map.tsx` の `frame`）。
+- 画面全体に、左上からの光（SoftLight）と、ふちの青緑の暗さ、漂う光の粒を重ねる（`airPaints` / `drawMotes`）。
+- 動くもの（波・池のきらめき・砂嵐の風・郵便受け・種・人物・家具）は `farm-map.tsx` で毎フレーム描く。
+
 ### 吃音村カフェ（Web版だけ。https://github.com/Masahiko-Les/Kitsuonmura-cafe から移植）
 - 農場のカフェ（BUILDINGS の cafe）に入れる。店内の間取りと座っている村人は `src/lib/game.ts` の `ROOMS.cafe` と `CAFE_GUESTS`、描画は `src/components/farm-map.tsx` の `cafeArt()`。
 - マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。

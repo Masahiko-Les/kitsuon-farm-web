@@ -34,5 +34,18 @@ export const HOUSE = {
   pot: hex("#b5674a"),
 };
 
+export const SEA = {
+  depth: ["#1f4f6a", "#28607d", "#327391", "#3f86a2"].map(hex),
+  shallow: hex("#6fb3c0"),
+  foam: hex("#e8f1ea"),
+  wave: "#7fbfd2",
+};
+export const SAND = {
+  ground: ["#c9a46e", "#d6b47c", "#e1c28d", "#ead0a0"].map(hex),
+  storm: ["#c29c68", "#cfac7a", "#dcc095", "#e8d4b0"].map(hex),
+  grass: hex("#b5a35c"),
+  grassDark: hex("#8f7f45"),
+};
+
 // 影の色（半透明で重ねる）
 export const SHADE = hex("#1d3c44");
