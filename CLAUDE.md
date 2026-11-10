@@ -26,6 +26,11 @@
 - 挑戦の種かどうかは種の場所（ID の「x_y」）で決める（`isDesert` / `isDesertSeedId` / `seedNameOf`。`src/lib/game.ts`）。データベースに印は持たない。
 - 「ありがとう」で実るのは砂漠の作物 `DESERT_CROPS`（10種類。id は `desert-` で始まる）。思い出帳には「砂漠の図鑑」として並べる。
 
+### 村役場（Web版だけ）
+- 農場の村役場（BUILDINGS の hall）に入れる。間取りは `ROOMS.hall`、描画は `farm-map.tsx` の `hallArt()`。
+- 奥の壁に掲示板（N）。向かってAを押すと、吃音についての情報（`src/lib/bulletin.ts`）を読める。医療・制度にかかわる内容なので、公開前と定期的に見直す。
+- カウンターの係員（タヌキ）に話しかけると、住民登録の窓口（`ClerkModal`）。住民登録はまだ準備中で、案内だけを出す。
+
 ### コマンド
 - `npm run web`：開発サーバー
 - `npm run build:web`：`dist/` に書き出す

@@ -15,6 +15,7 @@ import {
 } from "@/lib/farm-api";
 import { CROPS, type Crop, DESERT_CROPS, SEED_MIN_CHARS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
+import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
 import { C } from "@/theme";
@@ -47,6 +48,8 @@ export function useActions() {
     showThanks: (c: CropDoc) => modal.open(<ThanksModal crop={c} />),
     showHarvest: (letter: Letter, crop: Crop) => modal.open(<HarvestModal letter={letter} crop={crop} />),
     showBook: () => modal.open(<BookModal />),
+    showBulletin: () => modal.open(<BulletinModal />),
+    showClerk: () => modal.open(<ClerkModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
     showSupport: (kind: SupportKind, onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
   };
@@ -467,6 +470,39 @@ function BookModal() {
           })}
         </View>
       )}
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+/* =========================================================
+   村役場：掲示板と窓口
+   ========================================================= */
+function BulletinModal() {
+  const a = useActions();
+  return (
+    <>
+      <Title>{`掲示板「${BULLETIN_TITLE}」`}</Title>
+      {BULLETIN.map((sec) => (
+        <View key={sec.title}>
+          <SectionLabel>{sec.title}</SectionLabel>
+          {sec.lines.map((l) => <Body key={l} style={{ marginBottom: 4 }}>{l}</Body>)}
+        </View>
+      ))}
+      <Small>{BULLETIN_NOTE}</Small>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+// 係員の窓口。住民登録はまだ準備中
+function ClerkModal() {
+  const a = useActions();
+  return (
+    <>
+      <Title>村役場の窓口</Title>
+      <Body>係員「こんにちは。ここでは、吃音村の住民登録ができます。」</Body>
+      <Body>係員「ただ、住民登録の受付は、いま準備をしているところなんです。始まったら、ぜひまた来てくださいね。」</Body>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );

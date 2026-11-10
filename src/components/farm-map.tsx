@@ -5,7 +5,7 @@ import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, type Building, CAFE_GUESTS, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
+  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
   VIEW_TILES_ACROSS, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
@@ -682,6 +682,95 @@ function cafeArt(): RoomArt {
   return { base, rows: rowArt };
 }
 
+/* ---------- 村役場の中 ---------- */
+function drawHallFloor(X: number, Y: number, tx: number, ty: number) {
+  // 明るいタイルの床
+  rect(X, Y, 16, 16, (tx + ty) % 2 ? "#d8d2c4" : "#e2dccf");
+  rect(X, Y, 16, 1, "#cbc4b4");
+  rect(X, Y, 1, 16, "#cbc4b4");
+}
+function drawHallWall(X: number, Y: number) {
+  rect(X, Y, 16, 16, "#efe6d2");
+  rect(X, Y, 16, 3, "#8a7a64");
+  // 腰板
+  rect(X, Y + 11, 16, 5, "#b9a27c");
+  rect(X, Y + 11, 16, 1, "#cdb894");
+}
+// 掲示板（2マスぶん）。奥の壁に掛かっていて、紙のお知らせが貼ってある
+function drawBulletinBoard(X: number, Y: number) {
+  rect(X + 1, Y - 12, 30, 22, "#7a5235");
+  rect(X + 3, Y - 10, 26, 18, "#c99a62");
+  const notes: [number, number, number, number, string][] = [
+    [5, -9, 8, 7, "#f6efd9"], [15, -8, 9, 6, "#fff6c2"], [6, -1, 7, 7, "#d8ecf4"], [16, -1, 10, 7, "#f6efd9"],
+  ];
+  for (const [nx, ny, w, h, c] of notes) {
+    rect(X + nx, Y + ny, w, h, c);
+    rect(X + nx + 1, Y + ny + 2, w - 2, 1, "#9b9384");
+    rect(X + nx + 1, Y + ny + 4, w - 3, 1, "#9b9384");
+    rect(X + nx + Math.floor(w / 2), Y + ny, 1, 1, "#c4473a"); // 画びょう
+  }
+}
+function drawHallCounter(X: number, Y: number) {
+  rect(X, Y + 1, 16, 5, "#d9d4c8");
+  rect(X, Y + 1, 16, 1, "#f2efe8");
+  rect(X, Y + 6, 16, 10, "#5f7f9a");
+  rect(X + 2, Y + 8, 12, 6, "#53718a");
+}
+// 窓口の上の札（係員の上）
+function drawWindowSign(X: number, Y: number) {
+  rect(X + 1, Y - 14, 14, 6, "#3f6fb0");
+  rect(X + 2, Y - 13, 12, 4, "#5a8ad0");
+  for (let i = 0; i < 4; i++) rect(X + 3 + i * 3, Y - 12, 2, 2, "#f6efd9");
+}
+function drawBench(X: number, Y: number) {
+  rect(X, Y + 6, 16, 4, "#a0703f");
+  rect(X, Y + 6, 16, 1, "#b8854f");
+  rect(X, Y + 2, 16, 3, "#8a5c33");
+  rect(X + 2, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 12, Y + 10, 2, 5, "#5a3e2b");
+}
+
+function hallArt(): RoomArt {
+  const room = ROOMS.hall.map;
+  const cols = room[0].length, rows = room.length;
+  const at = (x: number, y: number) => roomTileAt("hall", x, y);
+  const bounds = Skia.XYWHRect(0, -TILE, cols * TILE, (rows + 1) * TILE);
+  const base = createPicture((canvas) => {
+    cv = canvas;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const X = x * TILE, Y = y * TILE;
+        const c = at(x, y);
+        if (c === "#") {
+          if (y === 0 && x > 0 && x < cols - 1) drawHallWall(X, Y);
+          else rect(X, Y, 16, 16, "#5c5246");
+        } else {
+          drawHallFloor(X, Y, x, y);
+          if (c === "E") drawDoorMat(X, Y);
+        }
+      }
+    }
+  }, bounds);
+  const rowArt = Array.from({ length: rows }, (_, y) => createPicture((canvas) => {
+    cv = canvas;
+    for (let x = 0; x < cols; x++) {
+      const X = x * TILE, Y = y * TILE;
+      const c = at(x, y);
+      // 掲示板は2マスぶん。左のマスを起点に描く
+      if (c === "N" && at(x - 1, y) !== "N") drawBulletinBoard(X, Y);
+      if (c === "K") { drawWindowSign(X, Y); drawAnimal(rect, "tanuki", X, Y + 3); }
+      if (c === "C") drawHallCounter(X, Y);
+      if (c === "P") drawPottedPlant(X, Y);
+      if (c === "L") {
+        drawBench(X, Y);
+        const guest = HALL_GUESTS[keyOf(x, y)];
+        if (guest) drawAnimal(rect, guest, X, Y - 4);
+      }
+    }
+  }, bounds));
+  return { base, rows: rowArt };
+}
+
 // 部屋は画面より小さいので、村人を置く高さに部屋の真ん中を合わせる
 function roomCamera(id: RoomId, p: Player, t: number, v: ViewSize) {
   const { fx } = playerPos(p, t);
@@ -787,7 +876,10 @@ function scaleFor(width: number) {
 export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scene>; paused: boolean; focusY?: number }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const base = useMemo(() => staticLayer(), []);
-  const rooms = useMemo<Record<RoomId, RoomArt>>(() => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt() }), []);
+  const rooms = useMemo<Record<RoomId, RoomArt>>(
+    () => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt(), hall: hallArt() }),
+    [],
+  );
   const picture = useSharedValue<SkPicture>(base);
   const scale = size.width ? scaleFor(size.width) : 1;
   const view = useMemo(

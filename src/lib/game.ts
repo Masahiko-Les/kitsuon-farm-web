@@ -121,7 +121,7 @@ export type Building = {
 export const BUILDINGS: Building[] = [
   { id: "house", name: "家", x: 3, y: 1, w: 2, h: 2, door: { x: 3, y: 2 }, enterable: true },
   { id: "cafe", name: "カフェ", x: 15, y: 2, w: 3, h: 2, door: { x: 16, y: 3 }, enterable: true },
-  { id: "hall", name: "村役場", x: 15, y: 9, w: 4, h: 3, door: { x: 16, y: 11 }, enterable: false },
+  { id: "hall", name: "村役場", x: 15, y: 9, w: 4, h: 3, door: { x: 16, y: 11 }, enterable: true },
   { id: "library", name: "図書館", x: 16, y: 13, w: 3, h: 2, door: { x: 17, y: 14 }, enterable: false },
   { id: "harbor", name: "港の待合所", x: 5, y: 20, w: 2, h: 2, door: { x: 5, y: 21 }, enterable: false },
   { id: "radio", name: "ラジオ局", x: 25, y: 2, w: 2, h: 2, door: { x: 25, y: 3 }, enterable: false },
@@ -131,7 +131,7 @@ export const buildingAt = (x: number, y: number) =>
   BUILDINGS.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
 
 // いま村人がいる場所。農場か、建物の中（建物の id と同じ）
-export type RoomId = "house" | "cafe";
+export type RoomId = "house" | "cafe" | "hall";
 export type Area = "farm" | RoomId;
 
 // 建物の中。どの部屋も #=壁 .=床 E=出入り口（下へ歩くと外に出る）
@@ -175,7 +175,29 @@ export const ROOMS: Record<RoomId, Room> = {
     entry: { x: 6, y: 9 },
     walkable: new Set([".", "E"]),
   },
+  // 村役場。N=掲示板（奥の壁。吃音についての情報） b=カウンターの内側 K=係員 C=窓口のカウンター
+  // L=待合のベンチ P=鉢植え。係員に話しかけると住民登録の窓口（準備中）
+  hall: {
+    map: [
+      "##############",
+      "#NN.bbKbb..NN#",
+      "#...CCCCC....#",
+      "#............#",
+      "#............#",
+      "#.LLLL..LLLL.#",
+      "#............#",
+      "#.LLLL..LLLL.#",
+      "#P...........#",
+      "#............#",
+      "######E#######",
+    ],
+    entry: { x: 6, y: 9 },
+    walkable: new Set([".", "E"]),
+  },
 };
+// 村役場の中に、ベンチで順番を待っている村人
+export const HALL_GUESTS: Record<string, string> = { "4_5": "sheep", "10_7": "rabbit" };
+
 export const roomTileAt = (room: RoomId, x: number, y: number) => {
   const m = ROOMS[room].map;
   return (m[y] && m[y][x]) || "#";

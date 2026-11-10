@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, CAFE_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, isDesert, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { useFarm } from "@/state/farm";
@@ -30,10 +30,22 @@ const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
     b: "カウンターの向こうだ。",
     P: "よく手入れされた鉢植えだ。",
   },
+  hall: {
+    "#": "村のお知らせが、きちんと並べて貼られている。",
+    b: "窓口の向こうだ。",
+    P: "よく手入れされた鉢植えだ。",
+  },
 };
 const ROOM_IDLE: Record<RoomId, string> = {
   house: "自分の家だ。ほっとする。",
   cafe: "コーヒーの香りがする。静かで、あたたかい。",
+  hall: "村役場だ。窓口では、係員が村人を迎えている。",
+};
+// 入れる建物の入り口に立ったときのヒント
+const DOOR_HINTS: Record<RoomId, string> = {
+  house: "自分の家だ。",
+  cafe: "カフェの入り口だ。コーヒーのいい香りがする。",
+  hall: "村役場の入り口だ。",
 };
 const doorOf = (id: RoomId) => BUILDINGS.find((b) => b.id === id)!.door;
 const isRoom = (a: Area): a is RoomId => a !== "farm";
@@ -171,6 +183,16 @@ export function FarmScreen() {
         if (front === "a") return { label: "…", hint: "村人が、静かにカップを傾けている。", run: null };
         if (front === "T") return { label: "…", hint: "テーブル席は埋まっているようだ。カウンターに座ろう。", run: null };
       }
+      if (room === "hall") {
+        if (front === "N") return { label: "読む", hint: "掲示板に、吃音についてのお知らせが貼ってある。", run: a.showBulletin };
+        if (front === "C" || front === "K") {
+          return { label: "話す", hint: "係員「こんにちは。村役場の窓口です」", run: a.showClerk };
+        }
+        if (front === "L") {
+          const guest = HALL_GUESTS[keyOf(fx, fy)];
+          return { label: "…", hint: guest ? "村人が、ベンチで順番を待っている。" : "待合のベンチだ。", run: null };
+        }
+      }
       const h = ROOM_HINTS[room][front];
       if (h) return { label: "…", hint: h, run: null };
       return { label: "…", hint: ROOM_IDLE[room], run: null };
@@ -186,8 +208,7 @@ export function FarmScreen() {
     }
     const building = buildingAt(pos.x + dx, pos.y + dy);
     if (building && building.enterable && building.door.x === pos.x + dx && building.door.y === pos.y + dy) {
-      const hint = building.id === "house" ? "自分の家だ。" : `${building.name}の入り口だ。コーヒーのいい香りがする。`;
-      return { label: "入る", hint, run: null, go: building.id as RoomId };
+      return { label: "入る", hint: DOOR_HINTS[building.id as RoomId], run: null, go: building.id as RoomId };
     }
     if (building) {
       const atDoor = building.door.x === pos.x + dx && building.door.y === pos.y + dy;
