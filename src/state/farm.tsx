@@ -1,12 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { useToast } from "@/components/toast";
 import {
   type CropDoc, type Letter, type Seed, agreeTerms, deleteEverything, loadUser, millis, registerName,
 } from "@/lib/farm-api";
+import { CAFE_HIDDEN_KEY } from "@/lib/cafe-api";
 import { auth, db, isConfigured } from "@/lib/firebase";
 import { TERMS_VERSION, cropById } from "@/lib/game";
 
@@ -20,6 +21,7 @@ type FarmState = {
   errorMessage: string;
   uid: string;
   name: string;
+  isAdmin: boolean; // 運営（admins/{uid} がある）。カフェの言葉の確認画面を使える
   publicSeeds: Map<string, Seed>;
   mySeeds: Map<string, Seed>;
   letters: Letter[]; // 通報済み・ブロック済みを除いた、新しい順
@@ -50,6 +52,14 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [uid, setUid] = useState(isConfigured ? "" : "offline");
   const [name, setName] = useState(isConfigured ? "" : "おためし");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // 運営かどうか（admins/{uid} は Firebase コンソールからだけ作る）
+  useEffect(() => {
+    if (phase !== "ready" || !uid || !isConfigured) return;
+    const unsub = onSnapshot(doc(db, "admins", uid), (snap) => setIsAdmin(snap.exists()), (e) => console.error("admin", e));
+    return () => { unsub(); setIsAdmin(false); };
+  }, [phase, uid]);
   const [publicSeeds, setPublicSeeds] = useState(new Map<string, Seed>());
   const [mySeeds, setMySeeds] = useState(new Map<string, Seed>());
   const [rawLetters, setRawLetters] = useState<Letter[]>([]);
@@ -132,7 +142,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setPhase("ready");
       throw e;
     }
-    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY]).catch(() => {});
+    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY]).catch(() => {});
     setHiddenSeeds(new Set());
     setSeenThanks(new Set());
   }, [uid]);
@@ -204,7 +214,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     + thanks.filter((c) => !seenThanks.has(c.id)).length;
 
   const value: FarmState = {
-    phase, errorMessage, uid, name, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
+    phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
     unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;

@@ -10,6 +10,13 @@
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
 - `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。
 
+### 吃音村カフェ（Web版だけ。https://github.com/Masahiko-Les/Kitsuonmura-cafe から移植）
+- 農場のカフェ（BUILDINGS の cafe）に入れる。店内の間取りと座っている村人は `src/lib/game.ts` の `ROOMS.cafe` と `CAFE_GUESTS`、描画は `src/components/farm-map.tsx` の `cafeArt()`。
+- マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・お手本・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。お手本は「運営が用意したお手本の言葉」と必ず表示する。
+- 「できたこと」と村のマップ、App Store の評価ダイアログは移植していない。
+- データは kitsuonnojo の `cafeAnswers`・`cafeReactions`・`reports`（targetType: cafeAnswer）。ルールは `firestore.rules` の☆の行。iPhone版と共有しているプロジェクトなので、種・手紙・作物のルールは変えない。
+- 運営は `admins/{uid}`（Firebase コンソールからだけ作る）。設定画面の下の「村人ID」で uid を確かめる。運営へのメール通知（Cloud Functions）はまだない（Blaze プランが必要）。
+
 ### コマンド
 - `npm run web`：開発サーバー
 - `npm run build:web`：`dist/` に書き出す

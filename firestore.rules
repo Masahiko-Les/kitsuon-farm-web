@@ -2,6 +2,7 @@ rules_version = '2';
 
 // 吃音農場のルール。reference/test_farm01/firestore.rules をそのまま使い、
 // 「すべてのデータを削除」のための delete だけを足している（★の行）。
+// Web版で吃音村カフェのルールを足した（☆の行）。種・手紙・作物のルールは iPhone版と同じまま。
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -103,11 +104,78 @@ service cloud.firestore {
       allow delete: if signedIn() && me() in resource.data.ownerUids; // ★
     }
 
-    // 通報（運営がFirebaseコンソールで確認する）
+    // 通報（運営がFirebaseコンソールで確認する。カフェの言葉への通報は、アプリの運営画面でも確認できる）
     match /reports/{reportId} {
       allow create: if signedIn()
         && request.resource.data.reporterUid == me()
-        && request.resource.data.targetType in ['seed', 'letter'];
+        && request.resource.data.targetType in ['seed', 'letter', 'cafeAnswer']; // ☆ cafeAnswer を追加
+
+      // ☆ 運営は読めて、「確認済み」の印だけつけられる
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['handled', 'handledAt'])
+        && request.resource.data.handled == true;
+    }
+
+    // ===== ☆ ここから下は吃音村カフェ（Web版で追加。吃音村カフェのアプリのルールと同じ） =====
+
+    // 運営。admins/{uid} はFirebaseコンソールからだけ作る（アプリからは書き込めない）
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(me())); }
+    function cafeAnswerPath(id) { return /databases/$(database)/documents/cafeAnswers/$(id); }
+
+    // 自分が運営かどうかだけ確かめられる
+    match /admins/{adminId} {
+      allow read: if signedIn() && me() == adminId;
+    }
+
+    // カフェの回答。名前は持たない。
+    // sessionId が同じ回答が3問1シリーズ。会話のあいだは draft（本人だけ）で、
+    // 3問答えて届けると決めたら pending にする。本人は public にできない（運営が確認して public に変える）。
+    match /cafeAnswers/{answerId} {
+      allow read: if signedIn()
+        && (resource.data.status == 'public' || resource.data.uid == me() || isAdmin());
+
+      allow create: if signedIn()
+        && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'sessionId', 'themeId', 'questionId', 'text', 'status', 'createdAt'])
+        && validText(request.resource.data.text, 600)
+        && request.resource.data.sessionId is string
+        && request.resource.data.themeId is string
+        && request.resource.data.questionId is string
+        && request.resource.data.status in ['draft', 'review'];
+
+      // 本人ができるのは、draft を pending にすることと、非公開にすること。
+      // 運営が非公開にした言葉（private）を、本人が pending に戻すことはできない。
+      // 運営は承認（public）と非承認（private）ができる
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && ((resource.data.uid == me() && request.resource.data.status == 'private')
+          || (resource.data.uid == me() && resource.data.status == 'draft' && request.resource.data.status == 'pending')
+          || (isAdmin() && request.resource.data.status in ['public', 'private']));
+
+      allow delete: if signedIn() && (resource.data.uid == me() || isAdmin());
+    }
+
+    // 回答に届けた気持ち。IDは「回答ID_送り主uid」で、1人1つ（選び直しは kind だけ変えられる）。
+    match /cafeReactions/{reactionId} {
+      allow read: if signedIn()
+        && (resource.data.toUid == me() || resource.data.fromUid == me());
+
+      allow create: if signedIn()
+        && request.resource.data.fromUid == me()
+        && reactionId == request.resource.data.answerId + '_' + me()
+        && request.resource.data.kind in ['empathy', 'courage', 'discovery', 'thanks']
+        && request.resource.data.toUid != me()
+        && get(cafeAnswerPath(request.resource.data.answerId)).data.status == 'public'
+        && get(cafeAnswerPath(request.resource.data.answerId)).data.uid == request.resource.data.toUid;
+
+      allow update: if signedIn()
+        && resource.data.fromUid == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kind', 'createdAt'])
+        && request.resource.data.kind in ['empathy', 'courage', 'discovery', 'thanks'];
+
+      allow delete: if signedIn()
+        && (resource.data.toUid == me() || resource.data.fromUid == me());
     }
   }
 }

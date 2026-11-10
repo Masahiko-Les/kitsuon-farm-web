@@ -47,6 +47,9 @@ export default function RootLayout() {
                 <Stack.Screen name="help" options={{ title: "あそびかた" }} />
                 <Stack.Screen name="terms" options={{ title: "利用規約" }} />
                 <Stack.Screen name="contact" options={{ title: "運営への連絡" }} />
+                <Stack.Screen name="cafe" options={{ title: "吃音村カフェ" }} />
+                <Stack.Screen name="cafe-mine" options={{ title: "わたしの言葉" }} />
+                <Stack.Screen name="cafe-admin" options={{ title: "運営：カフェの確認" }} />
               </Stack>
               </View>
             </ModalHost>

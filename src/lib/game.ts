@@ -6,7 +6,7 @@ export const MAX_CHARS = 300;
 export const SEED_MIN_CHARS = 20;
 export const NAME_MAX = 12;
 export const TILE = 16;
-export const TERMS_VERSION = 1;
+export const TERMS_VERSION = 2; // 2: 吃音村カフェを追加（Web版）
 
 // S=海 D=砂漠 W=砂嵐 T=木 .=草 ,=畑 P=道 ~=池 F=柵 H=建物 M=郵便受け（桟橋 B と船 V は HARBOR で決める）
 // 左上の 16×12 は最初の農場。すでに蒔かれた種の位置がずれないよう、ここは動かさない。
@@ -90,7 +90,7 @@ export type Building = {
 };
 export const BUILDINGS: Building[] = [
   { id: "house", name: "家", x: 3, y: 1, w: 2, h: 2, door: { x: 3, y: 2 }, enterable: true },
-  { id: "cafe", name: "カフェ", x: 15, y: 2, w: 3, h: 2, door: { x: 16, y: 3 }, enterable: false },
+  { id: "cafe", name: "カフェ", x: 15, y: 2, w: 3, h: 2, door: { x: 16, y: 3 }, enterable: true },
   { id: "hall", name: "村役場", x: 15, y: 9, w: 4, h: 3, door: { x: 16, y: 11 }, enterable: false },
   { id: "library", name: "図書館", x: 16, y: 13, w: 3, h: 2, door: { x: 17, y: 14 }, enterable: false },
   { id: "harbor", name: "港の待合所", x: 5, y: 20, w: 2, h: 2, door: { x: 5, y: 21 }, enterable: false },
@@ -100,23 +100,60 @@ export const BUILDINGS: Building[] = [
 export const buildingAt = (x: number, y: number) =>
   BUILDINGS.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
 
-// いま村人がいる場所。農場か、自分の家の中
-export type Area = "farm" | "house";
+// いま村人がいる場所。農場か、建物の中（建物の id と同じ）
+export type RoomId = "house" | "cafe";
+export type Area = "farm" | RoomId;
 
-// 自分の家の中。#=壁 .=床 K=本棚 B=ベッド L=テーブル E=出入り口（下へ歩くと外に出る）
-export const ROOM = [
-  "########",
-  "#KK...B#",
-  "#.....B#",
-  "#..LL..#",
-  "#......#",
-  "#......#",
-  "###E####",
-];
-export const ROOM_COLS = ROOM[0].length;
-export const ROOM_ROWS = ROOM.length;
-export const ROOM_WALKABLE = new Set([".", "E"]);
-export const ROOM_ENTRY = { x: 3, y: 5 }; // 家に入ったときに立つマス（出入り口の1つ上）
-export const roomTileAt = (x: number, y: number) => (ROOM[y] && ROOM[y][x]) || "#";
+// 建物の中。どの部屋も #=壁 .=床 E=出入り口（下へ歩くと外に出る）
+export type Room = {
+  map: string[];
+  entry: { x: number; y: number }; // 入ったときに立つマス（出入り口の1つ上）
+  walkable: Set<string>;
+};
+export const ROOMS: Record<RoomId, Room> = {
+  // 自分の家。K=本棚 B=ベッド L=テーブル
+  house: {
+    map: [
+      "########",
+      "#KK...B#",
+      "#.....B#",
+      "#..LL..#",
+      "#......#",
+      "#......#",
+      "###E####",
+    ],
+    entry: { x: 3, y: 5 },
+    walkable: new Set([".", "E"]),
+  },
+  // 吃音村カフェ（吃音村カフェのアプリから移植）。b=カウンターの内側 O=マスター C=バーカウンター
+  // s=空いている丸椅子 g=村人が座っている丸椅子 P=鉢植え T=テーブル a=村人が座っている椅子。
+  // 空いている丸椅子に向かってAを押すと座れる
+  cafe: {
+    map: [
+      "##############",
+      "#bbbbbObbbbbP#",
+      "#CCCCCCCCCCC.#",
+      "#sgsgssgssgs.#",
+      "#............#",
+      "#..aT.....aT.#",
+      "#............#",
+      "#P.aT.....aT.#",
+      "#............#",
+      "#............#",
+      "######E#######",
+    ],
+    entry: { x: 6, y: 9 },
+    walkable: new Set([".", "E"]),
+  },
+};
+export const roomTileAt = (room: RoomId, x: number, y: number) => {
+  const m = ROOMS[room].map;
+  return (m[y] && m[y][x]) || "#";
+};
+// カフェに座っている村人（カウンター席とテーブル席）
+export const CAFE_GUESTS: Record<string, string> = {
+  "2_3": "rabbit", "4_3": "tanuki", "7_3": "cat", "10_3": "dog",
+  "3_5": "sheep", "10_5": "fox", "3_7": "dog", "10_7": "rabbit",
+};
 
 export const keyOf = (x: number, y: number) => `${x}_${y}`;

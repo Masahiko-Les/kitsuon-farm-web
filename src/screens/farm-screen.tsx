@@ -10,21 +10,33 @@ import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, DIRS, type Dir, MAX_WATERERS, ROOM_ENTRY, ROOM_WALKABLE, SOWABLE, WALKABLE, buildingAt, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, SOWABLE, WALKABLE, buildingAt, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { useFarm } from "@/state/farm";
 import { C } from "@/theme";
 
-// go は家への出入り（描画ループの状態を変えるので、run とは分けて pressA で扱う）
-type Action = { label: string; hint: string; run: (() => void) | null; go?: "enter" | "leave" };
+// go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
+type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit"; seat?: { x: number; y: number } };
 
-const HOUSE = BUILDINGS.find((b) => b.id === "house")!;
-const ROOM_HINTS: Record<string, string> = {
-  B: "ふかふかのベッドだ。",
-  L: "木のテーブルだ。",
-  K: "本がたくさん並んでいる。",
+const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
+  house: {
+    B: "ふかふかのベッドだ。",
+    L: "木のテーブルだ。",
+    K: "本がたくさん並んでいる。",
+  },
+  cafe: {
+    "#": "棚にカップがきれいに並んでいる。",
+    b: "カウンターの向こうだ。",
+    P: "よく手入れされた鉢植えだ。",
+  },
 };
+const ROOM_IDLE: Record<RoomId, string> = {
+  house: "自分の家だ。ほっとする。",
+  cafe: "コーヒーの香りがする。静かで、あたたかい。",
+};
+const doorOf = (id: RoomId) => BUILDINGS.find((b) => b.id === id)!.door;
+const isRoom = (a: Area): a is RoomId => a !== "farm";
 
 export function FarmScreen() {
   const farm = useFarm();
@@ -84,15 +96,20 @@ export function FarmScreen() {
   const modalOpen = useRef(modal.isOpen);
   useEffect(() => { modalOpen.current = modal.isOpen; }, [modal.isOpen]);
 
-  // 農場と家の中を行き来する。歩かずに、その場に立たせる
+  // 農場と建物の中を行き来する。歩かずに、その場に立たせる
   const warp = useCallback((area: Area, x: number, y: number, dir: Dir) => {
     const sc = sceneRef.current;
     sc.area = area;
     Object.assign(sc.player, { x, y, dir, fromX: x, fromY: y, moveStart: 0, walkUntil: 0 });
     setPos({ x, y, dir, area });
   }, []);
-  const enterHouse = useCallback(() => warp("house", ROOM_ENTRY.x, ROOM_ENTRY.y, "up"), [warp]);
-  const leaveHouse = useCallback(() => warp("farm", HOUSE.door.x, HOUSE.door.y + 1, "down"), [warp]);
+  const enterRoom = useCallback((id: RoomId) => warp(id, ROOMS[id].entry.x, ROOMS[id].entry.y, "up"), [warp]);
+  const leaveRoom = useCallback(() => {
+    const id = sceneRef.current.area;
+    if (!isRoom(id)) return;
+    const door = doorOf(id);
+    warp("farm", door.x, door.y + 1, "down");
+  }, [warp]);
 
   // 1マス進む。歩いている途中でも、今いる場所から次のマスへ向かい直す
   const move = useCallback((dir: Dir) => {
@@ -104,13 +121,16 @@ export function FarmScreen() {
     const [dx, dy] = DIRS[dir];
     const nx = p.x + dx;
     const ny = p.y + dy;
-    if (sc.area === "house") {
+    const area = sc.area;
+    if (isRoom(area)) {
       // 出入り口へ歩くと外に出る
-      if (roomTileAt(nx, ny) === "E") { leaveHouse(); return; }
-      if (!ROOM_WALKABLE.has(roomTileAt(nx, ny))) { setPos({ x: p.x, y: p.y, dir, area: "house" }); return; }
+      const c = roomTileAt(area, nx, ny);
+      if (c === "E") { leaveRoom(); return; }
+      if (!ROOMS[area].walkable.has(c)) { setPos({ x: p.x, y: p.y, dir, area }); return; }
     } else {
-      // 家の扉へ歩くと中に入る
-      if (nx === HOUSE.door.x && ny === HOUSE.door.y) { enterHouse(); return; }
+      // 入れる建物の扉へ歩くと中に入る
+      const b = buildingAt(nx, ny);
+      if (b && b.enterable && b.door.x === nx && b.door.y === ny) { enterRoom(b.id as RoomId); return; }
       if (!WALKABLE.has(tileAt(nx, ny))) { setPos({ x: p.x, y: p.y, dir, area: "farm" }); return; }
     }
     const { fx, fy } = playerPos(p, now);
@@ -120,16 +140,40 @@ export function FarmScreen() {
     if (now > p.walkUntil) p.walkStart = now;
     p.walkUntil = now + 230;
     setPos({ x: nx, y: ny, dir, area: sc.area });
-  }, [enterHouse, leaveHouse]);
+  }, [enterRoom, leaveRoom]);
 
   /* ---------- ヒントとAボタン ---------- */
+  const openCafe = () => router.push("/cafe");
   const action: Action = (() => {
     const [dx, dy] = DIRS[pos.dir];
-    if (pos.area === "house") {
-      const front = roomTileAt(pos.x + dx, pos.y + dy);
-      if (ROOM_HINTS[front]) return { label: "…", hint: ROOM_HINTS[front], run: null };
+    if (isRoom(pos.area)) {
+      const room = pos.area;
+      const fx = pos.x + dx, fy = pos.y + dy;
+      const front = roomTileAt(room, fx, fy);
       if (front === "E") return { label: "出る", hint: "外に出られる。", run: null, go: "leave" };
-      return { label: "…", hint: "自分の家だ。ほっとする。", run: null };
+      if (room === "cafe") {
+        const seated = roomTileAt("cafe", pos.x, pos.y) === "s";
+        if (seated && front === "C") {
+          return { label: "話す", hint: "マスター「いらっしゃい。今日は、どんなお話をしましょうか」", run: openCafe };
+        }
+        if (seated) {
+          return { label: "話す", hint: "カウンター席に座っている。隣の村人も、静かにカップを傾けている。", run: openCafe };
+        }
+        if (front === "C" || front === "O") {
+          return { label: "…", hint: "マスター「どうぞ、カウンターの空いている席へ」", run: null };
+        }
+        if (front === "s") {
+          // 空いている丸椅子に座る。両隣の村人をヒントで伝える
+          const side = CAFE_GUESTS[keyOf(fx - 1, fy)] || CAFE_GUESTS[keyOf(fx + 1, fy)] ? "隣には村人が座っている。" : "";
+          return { label: "座る", hint: `カウンターの席が空いている。${side}`, run: null, go: "sit", seat: { x: fx, y: fy } };
+        }
+        if (front === "g") return { label: "…", hint: "村人が、カウンターでくつろいでいる。", run: null };
+        if (front === "a") return { label: "…", hint: "村人が、静かにカップを傾けている。", run: null };
+        if (front === "T") return { label: "…", hint: "テーブル席は埋まっているようだ。カウンターに座ろう。", run: null };
+      }
+      const h = ROOM_HINTS[room][front];
+      if (h) return { label: "…", hint: h, run: null };
+      return { label: "…", hint: ROOM_IDLE[room], run: null };
     }
     if (tileAt(pos.x + dx, pos.y + dy) === "M") {
       return { label: "開く", hint: "郵便受けだ。", run: a.showMailbox };
@@ -141,8 +185,9 @@ export function FarmScreen() {
       return { label: "…", hint: "船が停まっている。", run: null };
     }
     const building = buildingAt(pos.x + dx, pos.y + dy);
-    if (building === HOUSE && HOUSE.door.x === pos.x + dx && HOUSE.door.y === pos.y + dy) {
-      return { label: "入る", hint: "自分の家だ。", run: null, go: "enter" };
+    if (building && building.enterable && building.door.x === pos.x + dx && building.door.y === pos.y + dy) {
+      const hint = building.id === "house" ? "自分の家だ。" : `${building.name}の入り口だ。コーヒーのいい香りがする。`;
+      return { label: "入る", hint, run: null, go: building.id as RoomId };
     }
     if (building) {
       const atDoor = building.door.x === pos.x + dx && building.door.y === pos.y + dy;
@@ -175,8 +220,9 @@ export function FarmScreen() {
   const canPress = !!action.run || !!action.go;
   const pressA = () => {
     if (modal.isOpen) return;
-    if (action.go === "enter") enterHouse();
-    else if (action.go === "leave") leaveHouse();
+    if (action.go === "sit" && action.seat) { warp("cafe", action.seat.x, action.seat.y, "up"); openCafe(); }
+    else if (action.go === "leave") leaveRoom();
+    else if (action.go && action.go !== "sit") enterRoom(action.go);
     else action.run?.();
   };
 

@@ -49,7 +49,7 @@ export function useActions() {
     showHarvest: (letter: Letter, crop: Crop) => modal.open(<HarvestModal letter={letter} crop={crop} />),
     showBook: () => modal.open(<BookModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
-    showSupport: (kind: "seed" | "letter", onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
+    showSupport: (kind: SupportKind, onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
   };
 }
 
@@ -497,11 +497,18 @@ export function SupportList() {
   );
 }
 
-function SupportModal({ kind, onBack }: { kind: "seed" | "letter"; onBack?: () => void }) {
+// seed=種 letter=手紙 cafe=カフェの言葉（保存した） unsaved=カフェの言葉（保存できなかった）
+type SupportKind = "seed" | "letter" | "cafe" | "unsaved";
+const SUPPORT_LEAD: Record<SupportKind, string> = {
+  seed: "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。",
+  letter: "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。",
+  cafe: "とてもつらい気持ちが書かれていたので、この言葉はほかの村人には届けず、運営が確認します。",
+  unsaved: "とてもつらい気持ちが書かれていました。この言葉はまだ保存されていません。",
+};
+
+function SupportModal({ kind, onBack }: { kind: SupportKind; onBack?: () => void }) {
   const a = useActions();
-  const lead = kind === "seed"
-    ? "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。"
-    : "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。";
+  const lead = SUPPORT_LEAD[kind];
   return (
     <>
       <Title>ひとりで抱えこまないで</Title>

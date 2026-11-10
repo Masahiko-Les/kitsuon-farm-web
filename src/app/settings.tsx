@@ -9,14 +9,14 @@ import { useFarm } from "@/state/farm";
 import { C } from "@/theme";
 
 export default function Settings() {
-  const { deleteAllData } = useFarm();
+  const { deleteAllData, uid, isAdmin } = useFarm();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
   const confirmDelete = async () => {
     const ok = await confirmDialog({
       title: "すべてのデータを削除",
-      message: "あなたが蒔いた種、送った手紙・届いた手紙、作物、村人名をすべて消し、アカウントも削除します。元には戻せません。",
+      message: "あなたが蒔いた種、送った手紙・届いた手紙、作物、カフェの言葉、村人名をすべて消し、アカウントも削除します。元には戻せません。",
       ok: "削除する",
       destructive: true,
     });
@@ -38,9 +38,18 @@ export default function Settings() {
       <Row label="あそびかた" onPress={() => router.push("/help")} />
       <Row label="利用規約" onPress={() => router.push("/terms")} />
       <Row label="運営への連絡" onPress={() => router.push("/contact")} />
+      {isAdmin ? (
+        <>
+          <View style={{ height: 24 }} />
+          <Row label="運営：カフェの言葉の確認" onPress={() => router.push("/cafe-admin")} />
+        </>
+      ) : null}
       <View style={{ height: 24 }} />
       <Row label="すべてのデータを削除" danger onPress={confirmDelete} disabled={busy} />
-      <Small>自分の種・手紙・作物・村人名を消し、匿名アカウントも削除します。</Small>
+      <Small>自分の種・手紙・作物・カフェの言葉・村人名を消し、匿名アカウントも削除します。</Small>
+      <View style={{ height: 32 }} />
+      <Small>村人ID（運営に問い合わせるときに使います。選択してコピーできます）</Small>
+      <T selectable style={s.uid}>{uid}</T>
     </ScrollView>
   );
 }
@@ -75,4 +84,5 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 16 },
   chev: { fontSize: 20, color: C.sub },
+  uid: { fontSize: 12, color: C.sub, marginTop: 4 },
 });

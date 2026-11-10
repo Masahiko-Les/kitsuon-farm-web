@@ -8,7 +8,8 @@ export function measure(text: string) {
 // 下限の字数を数えるときは、空白と改行を数えない
 export const countContent = (text: string) => [...text.replace(/\s/g, "")].length;
 
-export type TextCheck = { ok?: true; error?: string; crisis: boolean };
+// filtered は、NGワードか連絡先で止めたときの印（カフェでは危機的な言葉を優先するのに使う）
+export type TextCheck = { ok?: true; error?: string; crisis: boolean; filtered?: true };
 
 // 送信前に必ず通す。
 export function checkText(text: string, minChars = 0): TextCheck {
@@ -21,10 +22,10 @@ export function checkText(text: string, minChars = 0): TextCheck {
   if (lines > MAX_LINES) return { error: `${MAX_LINES}行以内にしてください（いま${lines}行）。`, crisis };
   if (chars > MAX_CHARS) return { error: `${MAX_CHARS}字以内にしてください（いま${chars}字）。`, crisis };
   if (NG_WORDS.some((w) => text.includes(w))) {
-    return { error: "相手を傷つけるおそれのある言葉が含まれています。言い換えてください。", crisis };
+    return { error: "相手を傷つけるおそれのある言葉が含まれています。言い換えてください。", crisis, filtered: true };
   }
   if (CONTACT_PATTERNS.some((p) => p.test(text))) {
-    return { error: "連絡先やSNSのアカウントは書けません。消してから送ってください。", crisis };
+    return { error: "連絡先やSNSのアカウントは書けません。消してから送ってください。", crisis, filtered: true };
   }
   return { ok: true, crisis };
 }

@@ -5,9 +5,10 @@ import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, type Building, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOM_COLS, ROOM_ROWS, ROWS, TILE, VIEW_TILES_ACROSS,
-  roomTileAt, tileAt,
+  type Area, BUILDINGS, type Building, CAFE_GUESTS, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
+  VIEW_TILES_ACROSS, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
+import { drawAnimal } from "./animals";
 
 export const MOVE_MS = 150;
 const W = COLS * TILE; // マップ全体
@@ -500,15 +501,18 @@ function drawDoorMat(X: number, Y: number) {
   rect(X + 3, Y + 6, 10, 1, "#9c3d34");
 }
 
-function roomLayer(): SkPicture {
+function houseLayer(): SkPicture {
+  const room = ROOMS.house.map;
+  const cols = room[0].length, rows = room.length;
+  const at = (x: number, y: number) => roomTileAt("house", x, y);
   return createPicture((canvas) => {
     cv = canvas;
-    for (let y = 0; y < ROOM_ROWS; y++) {
-      for (let x = 0; x < ROOM_COLS; x++) {
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
         const X = x * TILE, Y = y * TILE;
-        const c = roomTileAt(x, y);
+        const c = at(x, y);
         if (c === "#") {
-          if (y === 0 && x > 0 && x < ROOM_COLS - 1) drawBackWall(X, Y);
+          if (y === 0 && x > 0 && x < cols - 1) drawBackWall(X, Y);
           else rect(X, Y, 16, 16, "#3a2e24");
         } else {
           drawFloor(X, Y, x);
@@ -521,36 +525,167 @@ function roomLayer(): SkPicture {
     rect(4 * TILE + 4, 4, 8, 7, "#a8d4ec");
     rect(4 * TILE + 8, 4, 1, 7, "#8a6a48");
     // 家具（左上のマスを起点に描く）
-    for (let y = 0; y < ROOM_ROWS; y++) {
-      for (let x = 0; x < ROOM_COLS; x++) {
-        const c = roomTileAt(x, y);
-        const first = roomTileAt(x - 1, y) !== c && roomTileAt(x, y - 1) !== c;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const c = at(x, y);
+        const first = at(x - 1, y) !== c && at(x, y - 1) !== c;
         if (!first) continue;
         if (c === "K") drawBookshelf(x * TILE, y * TILE);
         if (c === "B") drawBed(x * TILE, y * TILE);
         if (c === "L") drawTable(x * TILE, y * TILE);
       }
     }
-  }, Skia.XYWHRect(0, -TILE, ROOM_COLS * TILE, (ROOM_ROWS + 1) * TILE));
+  }, Skia.XYWHRect(0, -TILE, cols * TILE, (rows + 1) * TILE));
+}
+
+/* ---------- カフェの中 ---------- */
+function drawCafeFloor(X: number, Y: number, tx: number, ty: number) {
+  // 市松模様の床
+  rect(X, Y, 16, 16, (tx + ty) % 2 ? "#a77a52" : "#b98b5f");
+  rect(X, Y + 15, 16, 1, "rgba(0,0,0,0.08)");
+}
+function drawCafeWall(X: number, Y: number, tx: number) {
+  rect(X, Y, 16, 16, "#5a3e2b");
+  rect(X, Y, 16, 3, "#3a2a1e");
+  // 棚とカップ
+  rect(X, Y + 8, 16, 2, "#8a6a48");
+  if (tx % 2 === 0) {
+    rect(X + 3, Y + 5, 3, 3, "#f6efd9");
+    rect(X + 9, Y + 5, 3, 3, "#c4473a");
+  } else {
+    rect(X + 4, Y + 3, 3, 5, "#6f9a44"); // びん
+    rect(X + 10, Y + 5, 3, 3, "#f6efd9");
+  }
+  // 腰板
+  rect(X, Y + 12, 16, 4, "#7a5235");
+}
+function drawCounter(X: number, Y: number, tx: number) {
+  rect(X, Y + 1, 16, 5, "#c89060");
+  rect(X, Y + 1, 16, 1, "#e0ad78");
+  rect(X, Y + 6, 16, 10, "#7a5235");
+  rect(X + 2, Y + 8, 12, 6, "#6b4a2e");
+  if (tx === 9) { rect(X + 5, Y - 2, 6, 4, "#cfd8dc"); rect(X + 7, Y - 4, 2, 2, "#455a64"); } // コーヒーメーカー
+  // 座っている村人の前にはカップ
+  if (CAFE_GUESTS[keyOf(tx, 3)]) { rect(X + 6, Y + 1, 4, 3, "#f6efd9"); rect(X + 10, Y + 2, 1, 1, "#f6efd9"); }
+}
+function drawPottedPlant(X: number, Y: number) {
+  rect(X + 5, Y + 10, 6, 5, "#b5523b");
+  rect(X + 5, Y + 10, 6, 1, "#93402d");
+  rect(X + 3, Y + 2, 10, 8, "#4f8f3a");
+  rect(X + 5, Y, 6, 3, "#5e9e4e");
+  rect(X + 4, Y + 4, 2, 2, "#7cc35a");
+  rect(X + 10, Y + 6, 2, 2, "#7cc35a");
+}
+function drawCafeTable(X: number, Y: number) {
+  rect(X + 7, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 4, Y + 14, 8, 1, "#5a3e2b");
+  rect(X + 1, Y + 4, 14, 7, "#a0703f");
+  rect(X + 1, Y + 4, 14, 1, "#b8854f");
+  rect(X + 1, Y + 10, 14, 1, "#7a5235");
+  // カップと湯気
+  rect(X + 3, Y + 5, 3, 3, "#f6efd9");
+  rect(X + 4, Y + 6, 1, 1, "#6b4a2e");
+  rect(X + 10, Y + 5, 3, 3, "#f6efd9");
+}
+function drawStool(X: number, Y: number) {
+  rect(X + 7, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 5, Y + 14, 6, 1, "#5a3e2b");
+  rect(X + 3, Y + 7, 10, 4, "#c4473a");
+  rect(X + 3, Y + 7, 10, 1, "#e06a5c");
+}
+function drawChair(X: number, Y: number) {
+  rect(X + 3, Y + 2, 10, 3, "#7a5235");
+  rect(X + 3, Y + 10, 10, 3, "#8a6a48");
+  rect(X + 3, Y + 2, 2, 13, "#5a3e2b");
+  rect(X + 11, Y + 2, 2, 13, "#5a3e2b");
+}
+// 天井から下がるランプのあかり
+function drawLamp(X: number, Y: number) {
+  rect(X + 7, Y - 16, 1, 10, "#3a2a1e");
+  rect(X + 4, Y - 6, 8, 3, "#e2c15a");
+  rect(X + 5, Y - 3, 6, 1, "#fff6c2");
+}
+
+// 部屋の絵。base は床と壁、rows[y] はその行に置いた家具や村人。
+// 村人より下の行にあるものは村人のあとに描いて、手前に重なるようにする
+type RoomArt = { base: SkPicture; rows: SkPicture[] };
+
+function cafeArt(): RoomArt {
+  const room = ROOMS.cafe.map;
+  const cols = room[0].length, rows = room.length;
+  const at = (x: number, y: number) => roomTileAt("cafe", x, y);
+  const bounds = Skia.XYWHRect(0, -TILE, cols * TILE, (rows + 1) * TILE);
+  const base = createPicture((canvas) => {
+    cv = canvas;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const X = x * TILE, Y = y * TILE;
+        const c = at(x, y);
+        if (c === "#") {
+          if (y === 0 && x > 0 && x < cols - 1) drawCafeWall(X, Y, x);
+          else rect(X, Y, 16, 16, "#2e2219");
+        } else {
+          drawCafeFloor(X, Y, x, y);
+          if (c === "E") drawDoorMat(X, Y);
+        }
+      }
+    }
+  }, bounds);
+  const rowArt = Array.from({ length: rows }, (_, y) => createPicture((canvas) => {
+    cv = canvas;
+    for (let x = 0; x < cols; x++) {
+      const X = x * TILE, Y = y * TILE;
+      const c = at(x, y);
+      if (c === "O") drawAnimal(rect, "owl", X, Y + 3);
+      if (c === "C") drawCounter(X, Y, x);
+      if (c === "P") drawPottedPlant(X, Y);
+      if (c === "a") {
+        drawChair(X, Y);
+        const guest = CAFE_GUESTS[keyOf(x, y)];
+        if (guest) drawAnimal(rect, guest, X, Y - 2);
+      }
+      if (c === "T") { drawCafeTable(X, Y); drawLamp(X, Y); }
+      if (c === "s") drawStool(X, Y);
+      if (c === "g") {
+        // カウンターに向かって座っている村人（後ろ姿）
+        drawStool(X, Y);
+        const guest = CAFE_GUESTS[keyOf(x, y)];
+        if (guest) drawAnimal(rect, guest, X, Y - 6, true);
+      }
+    }
+    // あたたかい明かり（最後の行でまとめて重ねる）
+    if (y === rows - 1) rect(0, 0, cols * TILE, rows * TILE, "rgba(255,190,110,0.08)");
+  }, bounds));
+  return { base, rows: rowArt };
 }
 
 // 部屋は画面より小さいので、村人を置く高さに部屋の真ん中を合わせる
-function roomCamera(p: Player, t: number, v: ViewSize) {
+function roomCamera(id: RoomId, p: Player, t: number, v: ViewSize) {
   const { fx } = playerPos(p, t);
-  const RW = ROOM_COLS * TILE, RH = ROOM_ROWS * TILE;
+  const room = ROOMS[id].map;
+  const RW = room[0].length * TILE, RH = room.length * TILE;
   const x = RW <= v.w ? (RW - v.w) / 2 : Math.min(Math.max(fx * TILE + TILE / 2 - v.w / 2, 0), RW - v.w);
   return { x: Math.round(x), y: Math.round(RH / 2 - v.h * v.focusY) };
 }
 
-function roomFrame(room: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture {
+function roomFrame(id: RoomId, art: RoomArt, scene: Scene, t: number, v: ViewSize): SkPicture {
   return createPicture((canvas) => {
     cv = canvas;
     rect(0, 0, v.w, v.h, "#1a1612");
-    const cam = roomCamera(scene.player, t, v);
+    const cam = roomCamera(id, scene.player, t, v);
     canvas.save();
     canvas.translate(-cam.x, -cam.y);
-    canvas.drawPicture(room);
-    drawPlayer(scene.player, t);
+    canvas.drawPicture(art.base);
+    // 村人の立っている行までは奥、それより下の行は手前に描く
+    const { fy } = playerPos(scene.player, t);
+    art.rows.forEach((pic, y) => { if (y <= fy) canvas.drawPicture(pic); });
+    // 丸椅子に座っているときは、少し上に描いて腰かけた形にする
+    const p = scene.player;
+    const seated = roomTileAt(id, p.x, p.y) === "s" && fy === p.y;
+    if (seated) { canvas.save(); canvas.translate(0, -6); }
+    drawPlayer(p, t);
+    if (seated) canvas.restore();
+    art.rows.forEach((pic, y) => { if (y > fy) canvas.drawPicture(pic); });
     canvas.restore();
   }, { width: v.w, height: v.h });
 }
@@ -628,7 +763,7 @@ function scaleFor(width: number) {
 export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scene>; paused: boolean; focusY?: number }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const base = useMemo(() => staticLayer(), []);
-  const room = useMemo(() => roomLayer(), []);
+  const rooms = useMemo<Record<RoomId, RoomArt>>(() => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt() }), []);
   const picture = useSharedValue<SkPicture>(base);
   const scale = size.width ? scaleFor(size.width) : 1;
   const view = useMemo(
@@ -641,12 +776,12 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
     let raf = 0;
     const loop = (t: number) => {
       const sc = scene.current;
-      picture.value = sc.area === "house" ? roomFrame(room, sc, t, view) : frame(base, sc, t, view);
+      picture.value = sc.area === "farm" ? frame(base, sc, t, view) : roomFrame(sc.area, rooms[sc.area], sc, t, view);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [base, room, scene, picture, paused, view]);
+  }, [base, rooms, scene, picture, paused, view]);
 
   return (
     <View

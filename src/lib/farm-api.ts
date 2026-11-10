@@ -4,6 +4,7 @@ import {
   type Timestamp, where, writeBatch, type DocumentReference, type Query,
 } from "firebase/firestore";
 
+import { cafeRefsOf } from "./cafe-api";
 import { auth, db } from "./firebase";
 import { MAP_ID, MAX_WATERERS, TERMS_VERSION, keyOf } from "./game";
 
@@ -188,6 +189,8 @@ export async function deleteEverything(uid: string) {
   const lettersFrom = await refsOf(query(collection(db, "letters"), where("fromUid", "==", uid)));
   const seeds = await getDocs(query(collection(db, "seeds"), where("ownerUid", "==", uid)));
 
+  // カフェの言葉と、届けた・届いた気持ち
+  await deleteAll(await cafeRefsOf(uid));
   await deleteAll(blocks.docs.map((d) => d.ref));
   await deleteAll([...crops, ...lettersTo, ...lettersFrom]);
   await deleteAll(seeds.docs.map((d) => doc(db, "seedBodies", d.id)));
