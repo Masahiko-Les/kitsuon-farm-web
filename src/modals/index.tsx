@@ -13,7 +13,7 @@ import {
   type CropDoc, type Letter, type Seed, blockUser, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
   reportSeed, sayThanks, sowSeed, waterSeed,
 } from "@/lib/farm-api";
-import { CROPS, type Crop, SEED_MIN_CHARS, cropById, randomCrop } from "@/lib/game";
+import { CROPS, type Crop, DESERT_CROPS, SEED_MIN_CHARS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
@@ -89,9 +89,19 @@ function SowModal({ x, y }: { x: number; y: number }) {
 
   return (
     <>
-      <Title>種を蒔く</Title>
-      <Body>書いた苦労は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
-      <PaperInput placeholder="吃音の苦労を、20字以上・10行以内で書いてみよう" minChars={SEED_MIN_CHARS} onChangeText={(t) => { text.current = t; }} />
+      {isDesert(x, y) ? (
+        <>
+          <Title>挑戦の種を蒔く</Title>
+          <Body>書いた挑戦は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
+          <PaperInput placeholder="吃音と向き合う挑戦を、20字以上・10行以内で書いてみよう（これからのことも、やってみたことも）" minChars={SEED_MIN_CHARS} onChangeText={(t) => { text.current = t; }} />
+        </>
+      ) : (
+        <>
+          <Title>種を蒔く</Title>
+          <Body>書いた苦労は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
+          <PaperInput placeholder="吃音の苦労を、20字以上・10行以内で書いてみよう" minChars={SEED_MIN_CHARS} onChangeText={(t) => { text.current = t; }} />
+        </>
+      )}
       <ErrorText>{err}</ErrorText>
       <Actions>
         <Btn kind="quiet" label="やめる" onPress={a.close} />
@@ -111,7 +121,7 @@ function OwnSeedModal({ seed }: { seed: Seed }) {
   const status = seed.status === "review" ? "この種は確認中のため、ほかの村人には見えていません。" : "";
   return (
     <>
-      <Title>あなたが蒔いた種</Title>
+      <Title>{`あなたが蒔いた${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       {status ? <Small>{status}</Small> : null}
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
@@ -134,7 +144,7 @@ function WateredSeedModal({ seed }: { seed: Seed }) {
   const crop = crops.find((c) => c.letterId === `${seed.id}_${uid}`);
   return (
     <>
-      <Title>{`${seed.ownerName}さんの種`}</Title>
+      <Title>{`${seed.ownerName}さんの${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       <SectionLabel>あなたが送った手紙</SectionLabel>
       <Paper text={letter} from={`${name}より`} />
@@ -164,7 +174,7 @@ function SeedModal({ seed, text }: { seed: Seed; text: string }) {
 
   return (
     <>
-      <Title>{`${seed.ownerName}さんの種`}</Title>
+      <Title>{`${seed.ownerName}さんの${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       <Body style={{ marginTop: 14 }}>水やりしますか？</Body>
       <Actions>
@@ -228,7 +238,7 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
   return (
     <>
       <Title>優しい言葉で水やりしましょう</Title>
-      <Details summary={`${seed.ownerName}さんの種をもう一度読む`}><Paper text={seedText} /></Details>
+      <Details summary={`${seed.ownerName}さんの${seedNameOf(seed.id)}をもう一度読む`}><Paper text={seedText} /></Details>
       <Tips items={["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて"]} />
       <PaperInput placeholder={`${seed.ownerName}さんへ`} initial={initial} onChangeText={(t) => { text.current = t; }} />
       <ErrorText>{err}</ErrorText>
@@ -349,7 +359,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
     try {
       // 同じ種からは、誰の水やりでも同じ作物が実る。最初の1つだけランダムに決める
       const sameSeed = crops.find((x) => x.seedId === letter.seedId && x.sowerUid === uid);
-      const c = sameSeed ? cropById(sameSeed.cropType) : randomCrop();
+      const c = sameSeed ? cropById(sameSeed.cropType) : randomCrop(letter.seedId);
       await sayThanks(uid, name, letter, c.id);
       refresh();
       a.showHarvest(letter, c);
@@ -390,7 +400,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
     <>
       <Animated.View entering={ZoomIn.duration(500)}><T style={s.envelope}>💌</T></Animated.View>
       <Title>{`${letter.fromName}さんからの手紙`}</Title>
-      <Details summary="あなたが蒔いた種"><Paper text={letter.seedText || ""} /></Details>
+      <Details summary={`あなたが蒔いた${seedNameOf(letter.seedId)}`}><Paper text={letter.seedText || ""} /></Details>
       <Animated.View entering={FadeInDown.duration(600)}>
         <Paper text={letter.text} from={`${letter.fromName}より`} />
       </Animated.View>
@@ -435,9 +445,13 @@ function BookModal() {
   return (
     <>
       <Title>思い出帳</Title>
-      <T style={s.dex}>{`図鑑 ${got.size} / ${CROPS.length}種類`}</T>
+      <T style={s.dex}>{`図鑑 ${CROPS.filter((c) => got.has(c.id)).length} / ${CROPS.length}種類`}</T>
       <View style={s.dexRow} accessible={false}>
         {CROPS.map((c) => <T key={c.id} style={[s.dexEmoji, !got.has(c.id) && s.missing]}>{c.emoji}</T>)}
+      </View>
+      <T style={s.dex}>{`砂漠の図鑑 ${DESERT_CROPS.filter((c) => got.has(c.id)).length} / ${DESERT_CROPS.length}種類`}</T>
+      <View style={s.dexRow} accessible={false}>
+        {DESERT_CROPS.map((c) => <T key={c.id} style={[s.dexEmoji, !got.has(c.id) && s.missing]}>{c.emoji}</T>)}
       </View>
       {crops.length === 0 ? (
         <Body>まだ作物はありません。種に水やりするか、届いた手紙に「ありがとう」を伝えると、作物が実ってここに入ります。</Body>
@@ -464,7 +478,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
   const info = cropById(c.cropType);
   const lead = c.sowerUid === uid
     ? `あなたの種に、${c.watererName}さんが水やりしてくれました。`
-    : `あなたが${c.sowerName}さんの種に水やりしました。`;
+    : `あなたが${c.sowerName}さんの${seedNameOf(c.seedId)}に水やりしました。`;
   return (
     <>
       <View style={{ alignItems: "center" }}>
@@ -472,7 +486,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
         <Title>{`${info.name}　${dateText(c.harvestedAt)}`}</Title>
       </View>
       <Body>{lead}</Body>
-      <SectionLabel>{`${c.sowerName}さんの種`}</SectionLabel>
+      <SectionLabel>{`${c.sowerName}さんの${seedNameOf(c.seedId)}`}</SectionLabel>
       <Paper text={c.seedText} />
       <SectionLabel>{`${c.watererName}さんの手紙`}</SectionLabel>
       <Paper text={c.letterText} />

@@ -6,7 +6,7 @@ export const MAX_CHARS = 300;
 export const SEED_MIN_CHARS = 20;
 export const NAME_MAX = 12;
 export const TILE = 16;
-export const TERMS_VERSION = 2; // 2: 吃音村カフェを追加（Web版）
+export const TERMS_VERSION = 3; // 2: 吃音村カフェを追加（Web版） / 3: 砂漠の挑戦の種を追加
 
 // S=海 D=砂漠 W=砂嵐 T=木 .=草 ,=畑 P=道 ~=池 F=柵 H=建物 M=郵便受け（桟橋 B と船 V は HARBOR で決める）
 // 左上の 16×12 は最初の農場。すでに蒔かれた種の位置がずれないよう、ここは動かさない。
@@ -43,7 +43,7 @@ export const VIEW_TILES_ACROSS = 7.5;
 // 北の砂漠の奥行き。島の北端（y=1）から北へこのマス数だけ歩け、その先は砂嵐で進めない
 export const DESERT_DEPTH = 10;
 export const WALKABLE = new Set([".", ",", "P", "D", "B"]);
-// 砂漠（D）には今は蒔けない。将来、砂漠用の別の種を蒔けるようにする予定
+// 農場で「苦労の種」を蒔けるマス。砂漠（D）には「挑戦の種」を蒔ける（canSow）
 export const SOWABLE = new Set([".", ","]);
 
 export const CROPS = [
@@ -58,9 +58,27 @@ export const CROPS = [
   { id: "strawberry", name: "いちご", emoji: "🍓" },
   { id: "cabbage", name: "はくさい", emoji: "🥬" },
 ] as const;
-export type Crop = (typeof CROPS)[number];
-export const cropById = (id: string): Crop => CROPS.find((c) => c.id === id) ?? CROPS[0];
-export const randomCrop = (): Crop => CROPS[Math.floor(Math.random() * CROPS.length)];
+// 砂漠の「挑戦の種」に「ありがとう」を伝えると実るもの
+export const DESERT_CROPS = [
+  { id: "desert-cactus", name: "サボテンの花", emoji: "🌵" },
+  { id: "desert-watermelon", name: "スイカ", emoji: "🍉" },
+  { id: "desert-dates", name: "デーツ", emoji: "🌴" },
+  { id: "desert-olive", name: "オリーブ", emoji: "🫒" },
+  { id: "desert-sunflower", name: "ひまわり", emoji: "🌻" },
+  { id: "desert-melon", name: "メロン", emoji: "🍈" },
+  { id: "desert-pineapple", name: "パイナップル", emoji: "🍍" },
+  { id: "desert-lemon", name: "レモン", emoji: "🍋" },
+  { id: "desert-coconut", name: "ココナッツ", emoji: "🥥" },
+  { id: "desert-mango", name: "マンゴー", emoji: "🥭" },
+] as const;
+export type Crop = (typeof CROPS)[number] | (typeof DESERT_CROPS)[number];
+const ALL_CROPS: readonly Crop[] = [...CROPS, ...DESERT_CROPS];
+export const cropById = (id: string): Crop => ALL_CROPS.find((c) => c.id === id) ?? CROPS[0];
+// 種の場所で選ぶ。砂漠の挑戦の種なら砂漠の作物、農場の種なら野菜
+export const randomCrop = (seedId: string): Crop => {
+  const list = isDesertSeedId(seedId) ? DESERT_CROPS : CROPS;
+  return list[Math.floor(Math.random() * list.length)];
+};
 
 export type Dir = "up" | "down" | "left" | "right";
 export const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -82,6 +100,18 @@ export const tileAt = (x: number, y: number) => {
   if (y < 0 && x >= 1 && x < COLS - 1) return y > -DESERT_DEPTH ? "D" : "W";
   return (MAP[y] && MAP[y][x]) || "S";
 };
+
+/* ---------- 砂漠の「挑戦の種」 ----------
+   砂漠のマスに蒔いた種が「挑戦の種」。データベースには印を持たず、種の場所（ID の「x_y」）で決める */
+export const isDesert = (x: number, y: number) => tileAt(x, y) === "D";
+export function isDesertSeedId(id: string) {
+  const m = /^(-?\d+)_(-?\d+)$/.exec(id.split("_").slice(0, 2).join("_"));
+  return m ? isDesert(Number(m[1]), Number(m[2])) : false;
+}
+// 種の呼び名（画面の文言用）。砂漠なら「挑戦の種」
+export const seedNameOf = (seedId: string) => (isDesertSeedId(seedId) ? "挑戦の種" : "種");
+// 種を蒔けるマス：農場の草地・畑（苦労の種）と、砂漠（挑戦の種）
+export const canSow = (x: number, y: number) => SOWABLE.has(tileAt(x, y)) || isDesert(x, y);
 
 // 建物。いまは入れない。将来は enterable を true にして中の画面を作る
 // door は扉のマス（建物のいちばん下の行）。村人は扉の1つ下のマスから、上を向いて入る

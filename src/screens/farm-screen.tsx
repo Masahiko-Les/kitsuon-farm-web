@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, CAFE_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, SOWABLE, WALKABLE, buildingAt, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { useFarm } from "@/state/farm";
@@ -195,24 +195,25 @@ export function FarmScreen() {
     }
     const seed = seedAt(pos.x, pos.y);
     const kind = kindOf(seed);
+    // 砂漠に蒔いた種は「挑戦の種」。仕組みは農場と同じで、文言だけ変える
+    const desert = isDesert(pos.x, pos.y);
+    const seedName = desert ? "挑戦の種" : "種";
     if (seed && (kind === "mine" || kind === "mine-review")) {
-      return { label: "見る", hint: "あなたが蒔いた種だ。", run: () => a.showOwnSeed(seed) };
+      return { label: "見る", hint: `あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
     }
     if (seed && kind === "open") {
-      return { label: "水やり", hint: "土の中に種が埋まっている！", run: () => { a.showSeed(seed); } };
+      return { label: "水やり", hint: desert ? "砂の中に種が埋まっている！" : "土の中に種が埋まっている！", run: () => { a.showSeed(seed); } };
     }
     if (seed && kind === "watered") {
-      return { label: "見る", hint: "あなたが水やりした種だ。", run: () => a.showWateredSeed(seed) };
+      return { label: "見る", hint: `あなたが水やりした${seedName}だ。`, run: () => a.showWateredSeed(seed) };
     }
     if (kind === "full") {
       return { label: "見る", hint: "村人の優しさで花が咲きました。", run: () => toast("村人の優しさで花が咲きました。") };
     }
-    if (tileAt(pos.x, pos.y) === "D") {
-      return { label: "…", hint: "砂漠だ。ここには種を蒔けない。", run: null };
-    }
-    if (SOWABLE.has(tileAt(pos.x, pos.y))) {
+    if (canSow(pos.x, pos.y)) {
       const near = nearOpenSeed ? "近くに種の気配がする…　" : "";
-      return { label: "蒔く", hint: `${near}ここに種を蒔ける。`, run: () => a.showSow(pos.x, pos.y) };
+      const hint = desert ? "砂漠だ。ここに挑戦の種を蒔ける。" : "ここに種を蒔ける。";
+      return { label: "蒔く", hint: `${near}${hint}`, run: () => a.showSow(pos.x, pos.y) };
     }
     return { label: "…", hint: nearOpenSeed ? "近くに種の気配がする…" : "道の上には種を蒔けない。", run: null };
   })();

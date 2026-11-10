@@ -21,6 +21,11 @@
 - データは Supabase の `cafe_answers`・`cafe_reactions`・`reports`（target_type: cafeAnswer）。
 - 運営は `admins` テーブルに村人IDを入れた人（Supabase のダッシュボードからだけ書ける）。設定画面の下の「村人ID」で確かめる。運営へのメール通知はまだない。
 
+### 砂漠の「挑戦の種」（Web版だけ）
+- 島の北の砂漠（`tileAt` が "D"）では、苦労ではなく「挑戦」（これからのことも、やってみたことも）を種として蒔ける。水やり・ありがとう・通報・ブロックなどの仕組みは農場とまったく同じ。
+- 挑戦の種かどうかは種の場所（ID の「x_y」）で決める（`isDesert` / `isDesertSeedId` / `seedNameOf`。`src/lib/game.ts`）。データベースに印は持たない。
+- 「ありがとう」で実るのは砂漠の作物 `DESERT_CROPS`（10種類。id は `desert-` で始まる）。思い出帳には「砂漠の図鑑」として並べる。
+
 ### コマンド
 - `npm run web`：開発サーバー
 - `npm run build:web`：`dist/` に書き出す
