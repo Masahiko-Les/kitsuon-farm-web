@@ -1,4 +1,4 @@
-import { MAX_VOICES, type ReactionId, questionById, themeById } from "./cafe";
+import { MAX_VOICES, type ReactionId, themeById } from "./cafe";
 import type { Timestamp } from "./farm-api";
 import { isConfigured, must, supabase } from "./supabase";
 
@@ -37,8 +37,8 @@ export type CafeReaction = {
   createdAt?: Timestamp | null;
 };
 
-// 画面に出す「ほかの村人の言葉」。sample はお手本（運営が用意した文章）
-export type Voice = { key: string; text: string; sample: boolean; answer?: CafeAnswer };
+// 画面に出す「ほかの村人の言葉」
+export type Voice = { key: string; text: string; answer: CafeAnswer };
 
 // ひとりの村人の、3問そろった回答
 export type CafeSeries = { sessionId: string; uid: string; answers: CafeAnswer[] };
@@ -97,7 +97,7 @@ export async function saveAnswer(a: Omit<CafeAnswer, "id" | "createdAt">) {
 // ほかの村人の公開済みのシリーズ。3問そろっているものだけを、1人1シリーズまで選ぶ
 export async function loadSeries(themeId: string, uid: string, hidden: Set<string>): Promise<CafeSeries[]> {
   const theme = themeById(themeId);
-  if (!theme || !isConfigured) return []; // おためしモードでは、お手本の言葉だけ
+  if (!theme || !isConfigured) return []; // おためしモードでは、ほかの村人の言葉は出ない
   try {
     const rows = must(await supabase.from("cafe_answers").select("*")
       .eq("theme_id", themeId).eq("status", "public").limit(SERIES_SCAN)) ?? [];
@@ -123,13 +123,11 @@ export async function loadSeries(themeId: string, uid: string, hidden: Set<strin
   }
 }
 
-// この質問で読む言葉。同じ村人の話が3問を通してつながる。足りないぶんはお手本で補う
+// この質問で読む言葉。同じ村人の話が3問を通してつながる。まだ誰もいなければ空になる
 export function voicesFor(questionId: string, series: CafeSeries[]): Voice[] {
-  const real: Voice[] = series.flatMap((x) => x.answers.filter((a) => a.questionId === questionId))
-    .map((a) => ({ key: a.id, text: a.text, sample: false, answer: a }));
-  const samples: Voice[] = (questionById(questionId)?.question.samples ?? [])
-    .map((s, i) => ({ key: `sample-${questionId}-${i}`, text: s.text, sample: true }));
-  return [...real, ...samples].slice(0, MAX_VOICES);
+  return series.flatMap((x) => x.answers.filter((a) => a.questionId === questionId))
+    .map((a) => ({ key: a.id, text: a.text, answer: a }))
+    .slice(0, MAX_VOICES);
 }
 
 function shuffle<T>(arr: T[]) {

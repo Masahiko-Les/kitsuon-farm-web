@@ -14,7 +14,9 @@
 
 ### 吃音村カフェ（Web版だけ。https://github.com/Masahiko-Les/Kitsuonmura-cafe から移植）
 - 農場のカフェ（BUILDINGS の cafe）に入れる。店内の間取りと座っている村人は `src/lib/game.ts` の `ROOMS.cafe` と `CAFE_GUESTS`、描画は `src/components/farm-map.tsx` の `cafeArt()`。
-- マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・お手本・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。お手本は「運営が用意したお手本の言葉」と必ず表示する。
+- マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。
+- 運営が用意したお手本の言葉は置かない（2026年11月に削除）。読ませるのは村人の言葉だけで、まだ誰もいない質問ではマスターのひとことだけで次へ進む。運営が作った言葉を村人の言葉として載せない。
+- アカウントのない村人の言葉（本人の同意を得て運営が受け取ったもの）は、`supabase/migrations/0003` のように uid を空・author_key つきで取り込み、運営画面で承認する。気持ちは届けられない。
 - 「できたこと」と村のマップ、App Store の評価ダイアログは移植していない。
 - データは Supabase の `cafe_answers`・`cafe_reactions`・`reports`（target_type: cafeAnswer）。
 - 運営は `admins` テーブルに村人IDを入れた人（Supabase のダッシュボードからだけ書ける）。設定画面の下の「村人ID」で確かめる。運営へのメール通知はまだない。

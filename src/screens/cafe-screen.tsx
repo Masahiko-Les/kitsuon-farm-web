@@ -92,7 +92,7 @@ export function CafeScreen() {
 
   const voice = step.kind === "voices" ? step.voices[step.at] : null;
   const speakerName = voice
-    ? (voice.sample ? "お手本（運営が用意した言葉）" : "隣の席の村人")
+    ? "隣の席の村人"
     : "マスター（ふくろう）";
 
   return (
@@ -265,11 +265,14 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
   const v = step.voices[step.at];
   const last = step.index + 1 >= step.theme.questions.length;
 
-  const lead = step.at > 0
-    ? "隣の席に、また別の村人が座りました。この方の言葉も、聞いてみましょうか。"
-    : step.answered
-      ? "話してくれて、ありがとうございます。隣の席の村人も、同じ質問にこんな言葉を残していますよ。"
-      : "答えなくても大丈夫ですよ。隣の席の村人の言葉を、そっと置いておきますね。";
+  // まだ誰も言葉を残していない質問では、マスターのひとことだけで次へ進む
+  const lead = !v
+    ? (step.answered ? "話してくれて、ありがとうございます。" : "答えなくても大丈夫ですよ。")
+    : step.at > 0
+      ? "隣の席に、また別の村人が座りました。この方の言葉も、聞いてみましょうか。"
+      : step.answered
+        ? "話してくれて、ありがとうございます。隣の席の村人も、同じ質問にこんな言葉を残していますよ。"
+        : "答えなくても大丈夫ですよ。隣の席の村人の言葉を、そっと置いておきますね。";
 
   const react = async (kind: ReactionId) => {
     if (!v?.answer) return;
@@ -309,12 +312,7 @@ function VoicesStep({ step, onMore, onNext, onReported }: {
       {v ? (
         <Animated.View key={v.key} entering={FadeIn.duration(400)}>
           <T style={s.qSmall}>{`「${step.theme.questions[step.index].text}」`}</T>
-          {v.sample ? (
-            <View style={s.sampleTag}>
-              <T style={s.sampleText}>これは運営が用意したお手本の言葉です。実際の村人の言葉ではありません。</T>
-            </View>
-          ) : null}
-          <Paper text={v.text} from={v.sample ? "お手本（運営）" : "村人より"} />
+          <Paper text={v.text} from="村人より" />
           {v.answer && canReact(v.answer) ? (
             <>
               <T style={s.reactLead}>読んで感じた気持ちを、そっと届けられます（書いた人にだけ届きます）</T>
@@ -436,8 +434,6 @@ const s = StyleSheet.create({
   qSmall: { fontSize: 13, lineHeight: 20, color: C.sub, marginBottom: 8 },
   consentSub: { fontSize: 12, lineHeight: 18, color: C.sub, marginTop: 10 },
   entry: { marginBottom: 12 },
-  sampleTag: { backgroundColor: "#e2c15a", borderRadius: 4, paddingVertical: 5, paddingHorizontal: 8, marginBottom: 8 },
-  sampleText: { fontSize: 12, lineHeight: 18, color: C.ink },
   reactLead: { fontSize: 13, lineHeight: 20, color: C.sub, marginTop: 12, marginBottom: 6 },
   reactions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderWidth: 2, borderColor: C.soft, borderRadius: 16, paddingVertical: 5, paddingHorizontal: 12 },

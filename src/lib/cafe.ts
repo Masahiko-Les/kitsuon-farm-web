@@ -1,6 +1,6 @@
 /* =========================================================
-   吃音村カフェ：テーマ・質問・お手本の言葉
-   質問の文言とお手本の言葉は、公開前に見直すこと。
+   吃音村カフェ：テーマと質問
+   質問の文言は、公開前に見直すこと。
    ========================================================= */
 
 // 言葉を読んだときに届けられる気持ち。数は競わせず、書いた本人にだけ静かに届く
@@ -13,9 +13,7 @@ export const REACTIONS = [
 export type ReactionId = (typeof REACTIONS)[number]["id"];
 export const reactionLabel = (id: string) => REACTIONS.find((r) => r.id === id)?.label ?? "";
 
-// お手本の言葉（運営が用意したもの）。実際の村人の言葉と誤解されないよう、画面で必ず明示する
-export type Sample = { text: string };
-export type Question = { id: string; text: string; samples: Sample[] };
+export type Question = { id: string; text: string };
 export type Theme = {
   id: string;
   title: string;
@@ -41,17 +39,14 @@ export const THEMES: Theme[] = [
       {
         id: "stutter-1",
         text: "最近、吃音が気になる場面はありましたか？",
-        samples: [{ text: "電話で予約を取るとき、お店の名前の最初の音が出てこなくて、少し焦りました。\n電話を切ったあとも、しばらく気になっていました。" }],
       },
       {
         id: "stutter-2",
         text: "吃音が気になった時に、少し気持ちが楽になれる工夫や、ほっとできる瞬間はありますか？",
-        samples: [{ text: "話す前に、ゆっくり息をはくようにしています。\n帰り道に温かい飲みものを買ってひと息つくと、ほっとします。" }],
       },
       {
         id: "stutter-3",
         text: "最近の自分に、ひとことかけるとしたら、何と言いますか？",
-        samples: [{ text: "苦手な電話、最後までかけられたね。\n今週もおつかれさま、と言いたいです。" }],
       },
     ],
   },
@@ -65,17 +60,14 @@ export const THEMES: Theme[] = [
       {
         id: "chat-1",
         text: "好きなものや趣味はありますか？",
-        samples: [{ text: "パンを焼くのが好きです。\n休みの日は、朝からゆっくり生地をこねています。" }],
       },
       {
         id: "chat-2",
         text: "その好きなものや趣味に、どんな魅力を感じていますか？",
-        samples: [{ text: "時間をかけた分だけ、ちゃんとおいしくなるところです。\n焼けるまでの香りも好きで、待つ時間ごと楽しんでいます。" }],
       },
       {
         id: "chat-3",
         text: "これからやってみたいことや、楽しみにしていることはありますか？",
-        samples: [{ text: "今度、友だちを家に呼んで、焼きたてのパンを食べてもらいたいです。\nどんなパンにしようか、今から考えるのが楽しみです。" }],
       },
     ],
   },
