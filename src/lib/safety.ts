@@ -26,6 +26,6 @@ export const SUPPORT_NOTE = "受付時間は窓口によって違います。命
 
 // 運営の連絡先。アプリ内（設定 > 運営への連絡、利用規約）に表示する。
 export const OPERATOR = {
-  name: "吃音農場 運営",
+  name: "吃音村 運営",
   email: "myriel.jp@gmail.com",
 };

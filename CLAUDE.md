@@ -1,4 +1,6 @@
-# 吃音農場（Kitsuon Farm）Web版
+# 吃音村（Kitsuon Farm）Web版
+
+※ 2026年11月にアプリ名を「吃音農場」から「吃音村」に変えた。iPhone版はいまも「吃音農場」。画面に出す名前は「吃音村」にそろえる。
 
 **このリポジトリはWeb版。** iPhoneアプリ（https://github.com/Masahiko-Les/kitsuon_nojo）を複製し、Expo の Web 出力で同じ体験をブラウザで遊べるようにしたもの。**データと認証は Supabase、配信は Vercel**（2026年11月に Firebase から移行）。iPhone版は Firebase（kitsuonnojo）のままなので、iPhone版とWeb版は別々の農場。iPhone版の画面や文言の修正は、必要に応じてこちらにも反映する。
 

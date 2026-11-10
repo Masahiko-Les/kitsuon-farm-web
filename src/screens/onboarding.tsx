@@ -54,7 +54,7 @@ export function NameScreen() {
 
   return (
     <Frame>
-      <Title>ようこそ、吃音農場へ</Title>
+      <Title>ようこそ、吃音村へ</Title>
       <Body>この農園での呼び名を決めてください。ほかの村人にはこの名前だけが見えます。本名やSNSの名前は使わないでください。</Body>
       <TextInput
         style={s.nameInput}
