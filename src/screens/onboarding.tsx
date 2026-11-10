@@ -113,7 +113,7 @@ export function TermsAgreeScreen() {
   return (
     <Frame>
       <Title>利用規約とガイドライン</Title>
-      <Body>農場に入る前に、読んでください。</Body>
+      <Body>吃音村に入る前に、読んでください。</Body>
       <TermsBody />
       <Pressable
         style={s.check}
