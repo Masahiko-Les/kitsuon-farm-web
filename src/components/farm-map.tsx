@@ -315,6 +315,13 @@ function drawMound(X: number, Y: number, color = "#6b4226") {
   rect(X + 5, Y + 11, 6, 2, color);
   rect(X + 6, Y + 10, 4, 1, color);
 }
+// 蒔いたばかりの種（まだ誰も水やりしていない）。土の上に、小さな種がのぞいている
+function drawSeed(X: number, Y: number) {
+  drawMound(X, Y);
+  rect(X + 7, Y + 8, 2, 2, "#d9b25a");
+  rect(X + 7, Y + 8, 1, 1, "#f2dc96");
+  rect(X + 8, Y + 9, 1, 1, "#a8833c");
+}
 function drawSprout(X: number, Y: number, size: number, pale: boolean) {
   drawMound(X, Y);
   const stem = pale ? "#6f9a5a" : "#4f8f3a";
@@ -741,7 +748,11 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
       if (!inView(s.x, s.y)) continue;
       const X = s.x * TILE, Y = s.y * TILE;
       const kind = scene.kindOf(s);
-      if (kind === "mine") drawSprout(X, Y, Math.min(5, s.waterCount || 0), false);
+      // 自分の種：水やりされるまでは種のまま。ほかの村人が水やりすると芽が出て、回数に応じて育つ
+      if (kind === "mine") {
+        if ((s.waterCount || 0) > 0) drawSprout(X, Y, Math.min(5, s.waterCount), false);
+        else drawSeed(X, Y);
+      }
       else if (kind === "mine-review") drawMound(X, Y, "#7d7666");
       else if (kind === "watered") drawSprout(X, Y, 1, true);
       else if (kind === "full") drawFullPlant(X, Y);
