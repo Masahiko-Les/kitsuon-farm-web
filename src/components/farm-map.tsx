@@ -1088,6 +1088,15 @@ function staticLayer(): SkPicture {
   }, Skia.XYWHRect(-MARGIN * TILE, -NORTH, W + 2 * MARGIN * TILE, H + NORTH + SOUTH));
 }
 
+// 村のマップの村人。ベンチ（L）に座っているときは、少し上に描いて腰かけた形にする
+function drawOnFarm(p: Player, t: number) {
+  const { fy, moving } = playerPos(p, t);
+  const seated = !moving && tileAt(p.x, p.y) === "L" && Math.abs(fy - p.y) < 0.01;
+  if (seated) { cv.save(); cv.translate(0, -5); }
+  drawPlayer(p, t);
+  if (seated) cv.restore();
+}
+
 function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture {
   return createPicture((canvas) => {
     cv = canvas;
@@ -1128,9 +1137,9 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
     drawEffects(t);
     // 村長と村人は、手前（下）にいるほうをあとに描く。ほかの村人は、自分より先に描く（同じ行なら自分が手前）
     const people = [
-      ...[...scene.others.values()].filter((o) => inView(o.x, o.y)).map((o) => ({ fy: playerPos(o, t).fy - 0.001, draw: () => drawPlayer(o, t) })),
+      ...[...scene.others.values()].filter((o) => inView(o.x, o.y)).map((o) => ({ fy: playerPos(o, t).fy - 0.001, draw: () => drawOnFarm(o, t) })),
       { fy: mayorPos(scene.mayor, t).fy, draw: () => drawMayor(scene.mayor, t) },
-      { fy: playerPos(scene.player, t).fy, draw: () => drawPlayer(scene.player, t) },
+      { fy: playerPos(scene.player, t).fy, draw: () => drawOnFarm(scene.player, t) },
     ].sort((a, b) => a.fy - b.fy);
     for (const q of people) q.draw();
     canvas.restore();

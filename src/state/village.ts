@@ -25,7 +25,7 @@ function validSpot(area: Shared, v: unknown): { x: number; y: number; dir: Dir }
   const { x, y, dir } = v as Record<string, unknown>;
   if (!Number.isInteger(x) || !Number.isInteger(y) || !isDir(dir)) return null;
   const nx = x as number, ny = y as number;
-  if (area === "farm") return WALKABLE.has(tileAt(nx, ny)) ? { x: nx, y: ny, dir } : null;
+  if (area === "farm") return WALKABLE.has(tileAt(nx, ny)) || tileAt(nx, ny) === "L" ? { x: nx, y: ny, dir } : null; // L=ベンチに座っている
   const c = roomTileAt(area as RoomId, nx, ny);
   return ROOMS[area].walkable.has(c) || c === "s" ? { x: nx, y: ny, dir } : null;
 }

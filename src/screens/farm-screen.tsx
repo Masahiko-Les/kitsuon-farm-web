@@ -19,7 +19,7 @@ import { useVillagers } from "@/state/village";
 import { C } from "@/theme";
 
 // go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
-type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "mayor"; seat?: { x: number; y: number } };
+type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "bench" | "mayor"; seat?: { x: number; y: number } };
 
 const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
   house: {
@@ -54,6 +54,8 @@ const START = { x: 16, y: 17 };
 // 村長が歩き始める場所（広場から北へのびる道）と、1回ごとに立ち止まって休む確率
 const MAYOR_START = { x: 16, y: 10 };
 const MAYOR_REST = 0.3;
+// 村の中央の焚き火（ベンチに座ったときの向きに使う）
+const CAMPFIRE = { x: 16, y: 14 };
 const REVERSE: Record<Dir, Dir> = { up: "down", down: "up", left: "right", right: "left" };
 
 const doorOf = (id: RoomId) => BUILDINGS.find((b) => b.id === id)!.door;
@@ -257,6 +259,10 @@ export function FarmScreen() {
     if (pos.x + dx === mayorAt.x && pos.y + dy === mayorAt.y) {
       return { label: "話す", hint: "村長だ。村のことを、いつも見守っている。", run: null, go: "mayor" };
     }
+    // 焚き火のまわりのベンチ。座っているあいだは、歩けばそのまま立ち上がる
+    if (tileAt(pos.x, pos.y) === "L") {
+      return { label: "…", hint: "ベンチに座って、焚き火にあたっている。ぱちぱちと音がして、あたたかい。", run: null };
+    }
     if (tileAt(pos.x + dx, pos.y + dy) === "M") {
       return { label: "開く", hint: "郵便受けだ。", run: a.showMailbox };
     }
@@ -270,7 +276,7 @@ export function FarmScreen() {
       return { label: "…", hint: "焚き火だ。ぱちぱちと火がはぜている。", run: null };
     }
     if (tileAt(pos.x + dx, pos.y + dy) === "L") {
-      return { label: "…", hint: "ベンチだ。", run: null };
+      return { label: "座る", hint: "焚き火のそばのベンチだ。座れそうだ。", run: null, go: "bench", seat: { x: pos.x + dx, y: pos.y + dy } };
     }
     const building = buildingAt(pos.x + dx, pos.y + dy);
     if (building && building.enterable && building.door.x === pos.x + dx && building.door.y === pos.y + dy) {
@@ -317,8 +323,10 @@ export function FarmScreen() {
       sceneRef.current.mayor.dir = REVERSE[sceneRef.current.player.dir];
       a.showMayor();
     } else if (action.go === "sit" && action.seat) { warp("cafe", action.seat.x, action.seat.y, "up"); openCafe(); }
+    // ベンチに座る。焚き火のほうを向く（焚き火より北のベンチは下、南のベンチは上）
+    else if (action.go === "bench" && action.seat) warp("farm", action.seat.x, action.seat.y, action.seat.y < CAMPFIRE.y ? "down" : "up");
     else if (action.go === "leave") leaveRoom();
-    else if (action.go && action.go !== "sit") enterRoom(action.go);
+    else if (action.go && action.go !== "sit" && action.go !== "bench") enterRoom(action.go);
     else action.run?.();
   };
 
