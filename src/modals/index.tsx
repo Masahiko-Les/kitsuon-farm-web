@@ -36,7 +36,8 @@ export function useActions() {
 
   return {
     close: modal.close,
-    showSow: (x: number, y: number) => modal.open(<SowModal x={x} y={y} />),
+    showSow: (x: number, y: number, initial = "") => modal.open(<SowModal x={x} y={y} initial={initial} />),
+    showConsult: (onBack: () => void) => modal.open(<ConsultModal onBack={onBack} />),
     showOwnSeed: (seed: Seed) => modal.open(<OwnSeedModal seed={seed} />),
     showWateredSeed: (seed: Seed) => modal.open(<WateredSeedModal seed={seed} />),
     showSeed: async (seed: Seed) => {
@@ -64,11 +65,11 @@ export function useActions() {
 /* =========================================================
    種を蒔く
    ========================================================= */
-function SowModal({ x, y }: { x: number; y: number }) {
+function SowModal({ x, y, initial = "" }: { x: number; y: number; initial?: string }) {
   const { uid, name, refresh } = useFarm();
   const a = useActions();
   const toast = useToast();
-  const text = useRef("");
+  const text = useRef(initial);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -108,11 +109,17 @@ function SowModal({ x, y }: { x: number; y: number }) {
         <>
           <Title>種を蒔く</Title>
           <Body>書いた苦労は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
-          <PaperInput placeholder="吃音の苦労を、300文字以内で書いてみよう" maxLines={null} onChangeText={(t) => { text.current = t; }} />
+          <PaperInput placeholder="吃音の苦労を、300文字以内で書いてみよう" maxLines={null} initial={initial} onChangeText={(t) => { text.current = t; }} />
         </>
       )}
       <ErrorText>{err}</ErrorText>
       <Actions>
+        {/* 苦労の種だけ：書いている途中でも相談窓口を開ける（戻ると書きかけの文はそのまま） */}
+        {isDesert(x, y) ? null : (
+          <View style={s.consult}>
+            <LinkBtn label="本当につらい時はこちらに相談" onPress={() => { const t = text.current; a.showConsult(() => a.showSow(x, y, t)); }} />
+          </View>
+        )}
         <Btn kind="quiet" label="やめる" onPress={a.close} />
         <Btn label="種を蒔く" onPress={submit} disabled={busy} />
       </Actions>
@@ -698,6 +705,23 @@ const SUPPORT_LEAD: Record<SupportKind, string> = {
   idea: "とてもつらい気持ちが書かれていたので、このアイデアは黒板には出さず、運営が確認します。",
 };
 
+// 種を蒔くページから開く相談窓口
+function ConsultModal({ onBack }: { onBack: () => void }) {
+  const a = useActions();
+  return (
+    <>
+      <Title>ひとりで抱えこまないで</Title>
+      <Body>苦しいときは、話を聞いてくれる窓口があります。</Body>
+      <SupportList />
+      <Small>{SUPPORT_NOTE}</Small>
+      <Actions>
+        <Btn kind="quiet" label="種を蒔くページに戻る" onPress={onBack} />
+        <Btn label="とじる" onPress={a.close} />
+      </Actions>
+    </>
+  );
+}
+
 function SupportModal({ kind, onBack }: { kind: SupportKind; onBack?: () => void }) {
   const a = useActions();
   const lead = SUPPORT_LEAD[kind];
@@ -751,6 +775,7 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 6,
   },
+  consult: { flex: 1, minWidth: 0, alignSelf: "center" }, // 狭いときは折り返して、ボタンを1列に収める
   board: { backgroundColor: "#2f5a46", borderColor: "#7a5235", borderWidth: 6, borderRadius: 4, padding: 12, marginBottom: 10 },
   boardHead: { color: "#f4f7f2", fontSize: 16, marginBottom: 8, textDecorationLine: "underline" },
   boardItem: { marginBottom: 10 },
