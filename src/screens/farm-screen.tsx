@@ -298,7 +298,7 @@ export function FarmScreen() {
       const hint = desert ? "砂漠だ。ここに挑戦の種を蒔ける。" : "ここに種を蒔ける。";
       return { label: "蒔く", hint: `${near}${hint}`, run: () => a.showSow(pos.x, pos.y) };
     }
-    return { label: "…", hint: nearOpenSeed ? "近くに種の気配がする…" : "道の上には種を蒔けない。", run: null };
+    return { label: "…", hint: nearOpenSeed ? "近くに種の気配がする…" : "今日もいい天気だ。", run: null };
   })();
 
   const canPress = !!action.run || !!action.go;
@@ -381,7 +381,8 @@ export function FarmScreen() {
             onPress={pressA}
             style={({ pressed }) => [s.aBtn, pressed && s.aBtnPressed, !canPress && s.aBtnOff]}
           >
-            <T style={s.aText}>{action.label}</T>
+            {/* 押してもすることがないときは、何も書かない */}
+            <T style={s.aText}>{canPress ? action.label : ""}</T>
           </Pressable>
         </View>
       </View>
