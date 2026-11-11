@@ -1,5 +1,7 @@
 // 「ありがとう」で咲く花のドット絵（16×16）。農場の10種類と、砂漠の10種類
 // 1ドットずつ PixMap に描く。輪郭は最後にまとめて足す（便箋の上でも形が見えるように）
+import type { SkImage } from "@shopify/react-native-skia";
+
 import { PixMap, type RGB, hex } from "./pixmap";
 
 type Draw = (pm: PixMap) => void;
@@ -301,17 +303,29 @@ function outline(pm: PixMap) {
   for (const [x, y] of edge) pm.set(x, y, OUTLINE, 0.85);
 }
 
-// 花の 16×16 のドット（RGBA）。輪郭つき。1種類につき1回だけ描く
-const cache = new Map<string, Uint8Array>();
-export function flowerPixels(id: string): Uint8Array {
-  let d = cache.get(id);
-  if (!d) {
-    const pm = new PixMap(S, S);
+// 花の 16×16 のドット（RGBA）。1種類につき1回だけ描く
+// 輪郭は、便箋の上に出すときだけつける（マップの上では、まわりの絵になじませるため輪郭なし）
+const cache = new Map<string, PixMap>();
+function flowerMap(id: string, outlined: boolean) {
+  const key = `${id}:${outlined ? 1 : 0}`;
+  let pm = cache.get(key);
+  if (!pm) {
+    pm = new PixMap(S, S);
     (DRAW[id] ?? FARM.tulip)(pm);
-    outline(pm);
-    d = pm.data;
-    cache.set(id, d);
+    if (outlined) outline(pm);
+    cache.set(key, pm);
   }
-  return d;
+  return pm;
+}
+export const flowerPixels = (id: string): Uint8Array => flowerMap(id, true).data;
+// マップに咲かせる花の画像
+const images = new Map<string, SkImage>();
+export function flowerImage(id: string): SkImage {
+  let img = images.get(id);
+  if (!img) {
+    img = flowerMap(id, false).toImage();
+    images.set(id, img);
+  }
+  return img;
 }
 export const FLOWER_SIZE = S;

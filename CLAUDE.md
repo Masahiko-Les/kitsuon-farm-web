@@ -30,6 +30,7 @@
 - 「ありがとう」で実るのは野菜ではなく花。農場は `CROPS`（チューリップなど10種類）、砂漠は `DESERT_CROPS`（サボテンの花など10種類）で、種類を分ける（`src/lib/game.ts`）。iPhone版は野菜のまま。
 - 絵は絵文字ではなく16ドットのドット絵（`src/components/flowers.ts`）。画面には `FlowerIcon`（`flower-icon.tsx`）で、ドットを整数倍に広げた PNG として出す。大きさは16の倍数（32・48・96）にする。
 - 型・テーブル・列の名前は「作物」のまま（`crops.crop_type`）。花にする前の id（tomato など）は、`cropById` の中で同じ並び順の花に読みかえる。
+- 咲いた花は、村のマップのその種のマスに、村人みんなに見えるように咲く。種の `bloom` 列（`supabase/migrations/0004`）に、最初の「ありがとう」で `say_thanks` が花の id を入れる。描画は `farm-map.tsx` の `drawBloom`（輪郭なしのドット絵）。
 
 ### 村役場（Web版だけ）
 - 農場の村役場（BUILDINGS の hall）に入れる。間取りは `ROOMS.hall`、描画は `farm-map.tsx` の `hallArt()`。

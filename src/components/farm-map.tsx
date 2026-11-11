@@ -1,4 +1,6 @@
-import { Canvas, Group, Picture, Skia, type SkCanvas, type SkPaint, type SkPicture, createPicture } from "@shopify/react-native-skia";
+import {
+  Canvas, FilterMode, Group, MipmapMode, Picture, Skia, type SkCanvas, type SkPaint, type SkPicture, createPicture,
+} from "@shopify/react-native-skia";
 import { type RefObject, useEffect, useMemo, useState } from "react";
 import { type LayoutChangeEvent, PixelRatio, StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
@@ -6,9 +8,10 @@ import { useSharedValue } from "react-native-reanimated";
 import type { Seed } from "@/lib/farm-api";
 import {
   type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
-  VIEW_TILES_ACROSS, keyOf, roomTileAt, tileAt,
+  VIEW_TILES_ACROSS, cropById, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
+import { flowerImage } from "./flowers";
 
 export const MOVE_MS = 150;
 const W = COLS * TILE; // マップ全体
@@ -363,6 +366,13 @@ function drawFlower(X: number, Y: number) {
 // 種の育ち具合は3段階だけ見せる（水やりの人数がわからないように）。0回=種、1〜4回=芽、満員=花
 type Stage = "seed" | "sprout" | "flower";
 const stageOf = (waterCount: number): Stage => (waterCount >= 5 ? "flower" : waterCount > 0 ? "sprout" : "seed");
+// 「ありがとう」で咲いた花（flowers.ts のドット絵）。足元に小さな影
+function drawBloom(canvas: SkCanvas, X: number, Y: number, id: string) {
+  rect(X + 4, Y + 15, 8, 1, "rgba(40,60,30,0.25)");
+  canvas.drawImageRectOptions(
+    flowerImage(id), Skia.XYWHRect(0, 0, TILE, TILE), Skia.XYWHRect(X, Y, TILE, TILE), FilterMode.Nearest, MipmapMode.None,
+  );
+}
 function drawStage(X: number, Y: number, stage: Stage, pale = false) {
   if (stage === "flower") drawFlower(X, Y);
   else if (stage === "sprout") drawSprout(X, Y, 2, pale);
@@ -941,6 +951,8 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
     for (const s of scene.seeds) {
       if (!inView(s.x, s.y)) continue;
       const X = s.x * TILE, Y = s.y * TILE;
+      // 「ありがとう」で花が咲いた種は、誰の画面にもその花を咲かせる
+      if (s.bloom) { drawBloom(canvas, X, Y, cropById(s.bloom).id); continue; }
       const kind = scene.kindOf(s);
       // 自分の種：水やりされるまでは種、水やりされると芽、満員で花
       if (kind === "mine") drawStage(X, Y, stageOf(s.waterCount || 0));

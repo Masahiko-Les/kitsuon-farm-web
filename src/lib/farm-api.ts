@@ -22,6 +22,7 @@ export type Seed = {
   status: "public" | "review" | "hidden";
   waterCount: number;
   waterers: string[];
+  bloom?: string | null; // 「ありがとう」で咲いた花の id（supabase/migrations/0004）。マップに咲く
   createdAt?: Timestamp | null;
 };
 
@@ -76,6 +77,7 @@ export const toSeed = (r: Row): Seed => ({
   status: r.status as Seed["status"],
   waterCount: (r.water_count as number) ?? 0,
   waterers: (r.waterers as string[]) ?? [],
+  bloom: (r.bloom as string | null) ?? null,
   createdAt: r.created_at as string,
 });
 export const toLetter = (r: Row): Letter => ({

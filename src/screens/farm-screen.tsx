@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, isDesert, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, cropById, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { isConfigured } from "@/lib/supabase";
@@ -277,17 +277,21 @@ export function FarmScreen() {
     // 砂漠に蒔いた種は「挑戦の種」。仕組みは農場と同じで、文言だけ変える
     const desert = isDesert(pos.x, pos.y);
     const seedName = desert ? "挑戦の種" : "種";
+    // 「ありがとう」で花が咲いた種
+    const bloom = seed?.bloom ? `${cropById(seed.bloom).name}が咲いている。` : "";
     if (seed && (kind === "mine" || kind === "mine-review")) {
-      return { label: "見る", hint: `あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
+      return { label: "見る", hint: `${bloom}あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
     }
     if (seed && kind === "open") {
-      return { label: "水やり", hint: desert ? "砂の中に種が埋まっている！" : "土の中に種が埋まっている！", run: () => { a.showSeed(seed); } };
+      const hint = bloom ? `${bloom}まだ水やりの手紙を送れる。` : desert ? "砂の中に種が埋まっている！" : "土の中に種が埋まっている！";
+      return { label: "水やり", hint, run: () => { a.showSeed(seed); } };
     }
     if (seed && kind === "watered") {
-      return { label: "見る", hint: `あなたが水やりした${seedName}だ。`, run: () => a.showWateredSeed(seed) };
+      return { label: "見る", hint: `${bloom}あなたが水やりした${seedName}だ。`, run: () => a.showWateredSeed(seed) };
     }
     if (kind === "full") {
-      return { label: "見る", hint: "村人の優しさで花が咲きました。", run: () => toast("村人の優しさで花が咲きました。") };
+      const hint = bloom ? `${bloom}村人の優しさで咲いた花だ。` : "村人の優しさで花が咲きました。";
+      return { label: "見る", hint, run: () => toast(hint) };
     }
     if (canSow(pos.x, pos.y)) {
       const near = nearOpenSeed ? "近くに種の気配がする…　" : "";
