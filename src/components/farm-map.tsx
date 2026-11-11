@@ -37,6 +37,8 @@ export type SeedKind = "mine" | "mine-review" | "watered" | "full" | "open" | nu
 export type Player = {
   x: number; y: number; dir: Dir; fromX: number; fromY: number; moveStart: number; walkStart: number; walkUntil: number;
 };
+// ほかの村人。look は服の色の組み合わせ（ID から決める）
+export type Other = Player & { look: number };
 export type Effect = { type: "water" | "sow"; x: number; y: number; start: number; duration: number };
 
 // 描画ループが毎フレーム読むもの。React の再描画を待たずに参照する。
@@ -44,6 +46,7 @@ export type Scene = {
   area: Area;
   player: Player;
   mayor: Player; // 村のマップを道に沿ってゆっくり歩く村長
+  others: Map<string, Other>; // 同じ場所にいる、ほかの村人（src/state/village.ts）
   seeds: Seed[];
   kindOf: (s: Seed) => SeedKind;
   hasUnread: boolean;
@@ -181,13 +184,26 @@ function walkPhase(p: Player, t: number, moving: boolean) {
   return t < p.walkUntil || moving ? (1 + Math.floor((t - p.walkStart) / 115)) % 4 : -1;
 }
 
+// ほかの村人の服と帽子の帯の色。自分（青い服・赤い帯）と見分けられる、落ち着いた色
+const LOOKS = [
+  { shirt: "#5f8a4a", shirt2: "#7aa45f", band: "#3f6fb5", hair: "#4a3424" },
+  { shirt: "#b0674a", shirt2: "#c9805f", band: "#5f8a4a", hair: "#2f2620" },
+  { shirt: "#8a6aa8", shirt2: "#a386bf", band: "#c9a43c", hair: "#6b4a2a" },
+  { shirt: "#c99a3c", shirt2: "#dcb35a", band: "#7a5236", hair: "#3a2a1e" },
+  { shirt: "#4f8f8f", shirt2: "#6aa8a6", band: "#b0674a", hair: "#5a3e2b" },
+  { shirt: "#a8545f", shirt2: "#c06f78", band: "#3f6f6a", hair: "#2a2018" },
+];
+const ME = { shirt: "#3f6fb5", shirt2: "#5a8ad0", band: "#c0392b", hair: "#6b4a2a" };
+const lookFor = (p: Player) => ("look" in p ? LOOKS[(p as Other).look % LOOKS.length] : ME);
+
 function drawPlayer(p: Player, t: number) {
   const { fx, fy, moving } = playerPos(p, t);
   const X = Math.round(fx * TILE), Y = Math.round(fy * TILE);
   const ph = walkPhase(p, t, moving);
   const step = ph === 1 || ph === 3;
   const y = Y + (step ? -1 : 0); // 足を出したコマで体が少し上がる
-  const skin = "#f2c9a0", shoe = "#4a3a2a", shoe2 = "#33281c", shirt = "#3f6fb5", shirt2 = "#5a8ad0", hair = "#6b4a2a";
+  const { shirt, shirt2, band, hair } = lookFor(p);
+  const skin = "#f2c9a0", shoe = "#4a3a2a", shoe2 = "#33281c";
   const side = p.dir === "left" || p.dir === "right";
   const sgn = p.dir === "right" ? 1 : -1;
   rect(X + 4, Y + 14, 8, 1, "rgba(29,60,68,0.32)");
@@ -224,7 +240,7 @@ function drawPlayer(p: Player, t: number) {
   rect(X + 5, y + 4, 6, 4, skin);
   rect(X + 4, y + 1, 8, 3, "#e2c15a");
   rect(X + 2, y + 3, 12, 1, "#c9a43c");
-  rect(X + 4, y + 3, 8, 1, "#c0392b");
+  rect(X + 4, y + 3, 8, 1, band);
   if (p.dir === "up") {
     rect(X + 5, y + 4, 6, 3, hair);
   } else if (p.dir === "down") {
@@ -581,16 +597,23 @@ function roomFrame(id: RoomId, art: RoomArt, scene: Scene, t: number, v: ViewSiz
     canvas.save();
     canvas.translate(-cam.x, -cam.y);
     canvas.drawPicture(art.base);
-    // 村人の立っている行までは奥、それより下の行は手前に描く
-    const { fy } = playerPos(scene.player, t);
-    art.rows.forEach((pic, y) => { if (y <= fy) canvas.drawPicture(pic); });
-    // 丸椅子に座っているときは、少し上に描いて腰かけた形にする
-    const p = scene.player;
-    const seated = roomTileAt(id, p.x, p.y) === "s" && fy === p.y;
-    if (seated) { canvas.save(); canvas.translate(0, -6); }
-    drawPlayer(p, t);
-    if (seated) canvas.restore();
-    art.rows.forEach((pic, y) => { if (y > fy) canvas.drawPicture(pic); });
+    // 家具は行ごとに描き、村人は立っている行の家具のあとに描く（下の行の家具が手前に来る）
+    const people = [...scene.others.values(), scene.player]
+      .map((p) => ({ p, fy: playerPos(p, t).fy - (p === scene.player ? 0 : 0.001) }))
+      .sort((a, b) => a.fy - b.fy);
+    let k = 0;
+    const drawPerson = (p: Player, fy: number) => {
+      // 丸椅子に座っているときは、少し上に描いて腰かけた形にする
+      const seated = roomTileAt(id, p.x, p.y) === "s" && Math.abs(fy - p.y) < 0.01;
+      if (seated) { canvas.save(); canvas.translate(0, -6); }
+      drawPlayer(p, t);
+      if (seated) canvas.restore();
+    };
+    art.rows.forEach((pic, y) => {
+      while (k < people.length && people[k].fy < y) { drawPerson(people[k].p, people[k].fy); k++; }
+      canvas.drawPicture(pic);
+    });
+    while (k < people.length) { drawPerson(people[k].p, people[k].fy); k++; }
     canvas.restore();
     const air = airPaints(v);
     canvas.drawRect(Skia.XYWHRect(0, 0, v.w, v.h), air.light);
@@ -732,7 +755,9 @@ function frame(art: MapArt, scene: Scene, t: number, v: ViewSize): SkPicture {
     }
     drawEffects(t);
     // 村長と村人は、手前（下）にいるほうをあとに描く。木の葉は、その行より奥にいる人の上に重ねる
+    // ほかの村人は、自分より先に描く（同じ行なら自分が手前）
     const people = [
+      ...[...scene.others.values()].filter((o) => inView(o.x, o.y)).map((o) => ({ fy: playerPos(o, t).fy - 0.001, draw: () => drawPlayer(o, t) })),
       { fy: mayorPos(scene.mayor, t).fy, draw: () => drawMayor(scene.mayor, t) },
       { fy: playerPos(scene.player, t).fy, draw: () => drawPlayer(scene.player, t) },
     ].sort((a, b) => a.fy - b.fy);

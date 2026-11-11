@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FarmMap, MAYOR_MOVE_MS, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
+import { FarmMap, MAYOR_MOVE_MS, type Other, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
 import { useModal } from "@/components/modal-host";
 import { SwipeArea } from "@/components/swipe-walk";
 import { useToast } from "@/components/toast";
@@ -13,7 +13,9 @@ import {
   type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
+import { isConfigured } from "@/lib/supabase";
 import { useFarm } from "@/state/farm";
+import { useVillagers } from "@/state/village";
 import { C } from "@/theme";
 
 // go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
@@ -97,10 +99,12 @@ export function FarmScreen() {
     for (const s of farm.mySeeds.values()) m.set(s.id, s);
     return [...m.values()];
   }, [farm.publicSeeds, farm.mySeeds, farm.hiddenSeeds]);
+  const [others] = useState(() => new Map<string, Other>());
   const sceneRef = useRef<Scene>({
     area: "farm",
     player: { x: 8, y: 9, dir: "down", fromX: 8, fromY: 9, moveStart: 0, walkStart: 0, walkUntil: 0 } satisfies Player,
     mayor: { ...MAYOR_START, dir: "down", fromX: MAYOR_START.x, fromY: MAYOR_START.y, moveStart: 0, walkStart: 0, walkUntil: 0 },
+    others,
     seeds: [],
     kindOf: () => null,
     hasUnread: false,
@@ -110,6 +114,11 @@ export function FarmScreen() {
   useEffect(() => {
     Object.assign(sceneRef.current, { seeds: visibleSeeds, kindOf, hasUnread });
   }, [visibleSeeds, kindOf, hasUnread]);
+
+  /* ---------- ほかの村人 ---------- */
+  // 自分の立ち位置が変わるたびに知らせる（同じ場所の村に、場所だけが届く）
+  const announce = useVillagers(isConfigured && farm.phase === "ready", others);
+  useEffect(() => { announce(pos.area, pos.x, pos.y, pos.dir); }, [announce, pos.area, pos.x, pos.y, pos.dir]);
 
   /* ---------- 移動 ---------- */
   const modalOpen = useRef(modal.isOpen);
