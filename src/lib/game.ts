@@ -7,39 +7,40 @@ export const TILE = 16;
 export const TERMS_VERSION = 3; // 2: 吃音村カフェを追加（Web版） / 3: 砂漠の挑戦の種を追加
 
 // S=海 D=砂漠 W=砂嵐 T=木 .=草 ,=畑 P=道 ~=池 F=柵 H=建物 M=郵便受け（桟橋 B と船 V は HARBOR で決める）
-// 左上の 16×12 は最初の農場。すでに蒔かれた種の位置がずれないよう、ここは動かさない。
+// R=岩場 C=サボテン K=岩山 O=焚き火 L=ベンチ（どれも通れない）
+// 2026年11月に作り直した地形：西は海、北西の崖の上にラジオ局、北東は砂漠、中央は焚き火の広場、東と南東は柵の畑、南西に港
 export const MAP = [
-  "SDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDS",
-  "S..HH....,,,,,....,,,,.........S",
-  "S..HHM...,,,,,.HHH,,,,...HH..TTS",
-  "S..PP....,,,,,.HHH,,,,...HH...TS",
-  "S..PPPPPPPPP...PPPPPPPPPPPPPP..S",
-  "S.~~.....P.....T....P.......P..S",
-  "S.~~..,,,P,,,..T.,,,P,,,,,,.P..S",
-  "S.....,,,P,,,..T.,,,P,,,,,,.P..S",
-  "S.FFF.,,,P,,,....,,,P,,,,,,.P..S",
-  "S.....PPPP.....HHHH.P.......P..S",
-  "S......P......THHHH.PPPPPPPPP.TS",
-  "STTTTTTP...TTTTHHHH.P........TTS",
-  "S......P........PPPPP..........S",
-  "S.~~~~.P..,,,,,.HHH.P..,,,,,,..S",
-  "S.~~~~.P..,,,,,.HHH.P..,,,,,,..S",
-  "S.~~~~.PPPPPPPPPPPPPP..,,,,,,..S",
-  "S......P............P..........S",
-  "S.FFFF.P.,,,,,,..TT.P.,,,,,,,..S",
-  "S......P.,,,,,,..TT.P.,,,,,,,..S",
-  "S..T...P.,,,,,,.....P.,,,,,,,..S",
-  "S.TTTHHP............P...HHHTT..S",
-  "S..T.HHPPPPPPPPPPPPPP...HHHTT..S",
-  "S...PPPP............PPPPPPP....S",
-  "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+  "SSRRRRRRRRRRRTTTTTTTTTTWWWWWWWWWWWWWWWWWWWWWWWWW",
+  "SSRRRHHRRRRRRTTTTTTTTTTTTDDDDDDDDDDDDDKKDDDDDDDW",
+  "SSRRRHHRRRRRRTTT...TTTT.DDDDDCDDDDDDDDDDDCDDDDDW",
+  "SSRRRPRRRRR.............DDDDDDDDHHHDCDDDDDDDDDDW",
+  "SSRRRPRRRHH.........HHHH.DDDDDDDHHHDDDDDDDDKDDDW",
+  "SSRRRPRRRHH.......T.HHHH.DDPPPPPPPDDDDDDDDDDDDDW",
+  "SSRRRPRRRHH.T.HH..T.HHHH..DPDDDDDDDDDDDDDDDDCDDW",
+  "SSRRRP.....T..HHM....P....DPDDDCDDDDDDDDDDDDDDDW",
+  "SSRRRPPPPPPPPPPPPPPPPPPPPPPPDDDDDDDDDCDDDDDDDDDW",
+  "SSS........T....P..........DDDCDDDDDDDDDKKDDDDDW",
+  "SS.HH.TT....T...P....T.T...DDDDDDDDKDDDDDDDDDDDW",
+  "SS.HH...HHH.....P.....T.T.FFFFFFFFFFFFDDDDCDDDDW",
+  "SS.HH...HHH..PPPPPPP......F,,,,,,,,,,FDDDDDDDDDW",
+  "SS.P.....P...PLPPPLP......F,,,,,,,,,,FDDDDDDDDDW",
+  "SS.PPPPPPPPPPPPPOPPPPPPPPPP,,,,,,,,,,FDDDDDKDDDW",
+  "SSS..........PLPPPLP......F,,,,,,,,,,FDDDDDDDDDW",
+  "SSSS...~~~...PPPPPPP......F,,,,,,,,,,FDDCDDDDDDW",
+  "SSSS...~~~......P.........F,,,,,,,,,,FDDDDDDDDDW",
+  "SSSSS...........P..T......FFFFFFFFFFFFDDDDDDCDDW",
+  "SSSFFF.......T..P...T.................DDDDKDDDDW",
+  "SSSSSSS...HH..T.P....HHH.....FFFFFFFFFF.DDDDDDDW",
+  "SSSSSSSS..HH....P....HHH.....F,,,,,,,,FT..RRRRRR",
+  "SSSSSSSSS.PPPPPPPPPPPPPPPPPPPP,,,,,,,,F...RRRRRR",
+  "SSSSSSSSSRP..............T...F,,,,,,,,FRRRRRRRRR",
+  "SSSSSSSSSSP.RR..........T....FFFFFFFFFFRRRRRRRRR",
+  "SSSSSSSSSSPRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
 ];
 export const COLS = MAP[0].length;
 export const ROWS = MAP.length;
 // 画面に横に何マス見せるか（縦は画面の高さで決まる）。カメラが村人を追いかける
 export const VIEW_TILES_ACROSS = 7.5;
-// 北の砂漠の奥行き。島の北端（y=1）から北へこのマス数だけ歩け、その先は砂嵐で進めない
-export const DESERT_DEPTH = 10;
 export const WALKABLE = new Set([".", ",", "P", "D", "B"]);
 // 農場で「苦労の種」を蒔けるマス。砂漠（D）には「挑戦の種」を蒔ける（canSow）
 export const SOWABLE = new Set([".", ","]);
@@ -92,22 +93,25 @@ export const randomCrop = (seedId: string): Crop => {
 export type Dir = "up" | "down" | "left" | "right";
 export const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
-// 港の桟橋と船。南の海の上に、マップの外まで続く
+// 港の桟橋と船。港の待合所の南から、マップの外の海へ延びる
 export const HARBOR = {
-  pier: { x: 4, y: 23, h: 2 }, // 桟橋（歩ける）
-  ship: { x: 5, y: 23, w: 3, h: 2 }, // 桟橋の右に停まっている船（歩けない）
+  pier: { x: 10, y: 26, h: 2 }, // 桟橋（歩ける）
+  ship: { x: 11, y: 26, w: 3, h: 2 }, // 桟橋の右に停まっている船（歩けない）
 };
 const inRect = (x: number, y: number, r: { x: number; y: number; w?: number; h: number }) =>
   x >= r.x && x < r.x + (r.w ?? 1) && y >= r.y && y < r.y + r.h;
 // 海の上に置かれたもの。波打ち際の砂浜は描かない
 export const ON_SEA = new Set(["S", "B", "V"]);
 
-// マップの北には砂漠と砂嵐が続き（幅は島と同じ。左右の端の列は海）、それ以外の外はずっと海
-export const tileAt = (x: number, y: number) => {
+// 砂漠のもの。マップの外は、いちばん近い端のマスが砂漠なら砂嵐、それ以外はずっと海
+const DESERT_SIDE = new Set(["D", "W", "C", "K"]);
+export const tileAt = (x: number, y: number): string => {
   if (inRect(x, y, HARBOR.pier)) return "B";
   if (inRect(x, y, HARBOR.ship)) return "V";
-  if (y < 0 && x >= 1 && x < COLS - 1) return y > -DESERT_DEPTH ? "D" : "W";
-  return (MAP[y] && MAP[y][x]) || "S";
+  const c = MAP[y]?.[x];
+  if (c) return c;
+  const edge = MAP[Math.min(Math.max(y, 0), ROWS - 1)][Math.min(Math.max(x, 0), COLS - 1)];
+  return DESERT_SIDE.has(edge) ? "W" : "S";
 };
 
 /* ---------- 砂漠の「挑戦の種」 ----------
@@ -128,13 +132,15 @@ export type Building = {
   id: string; name: string; x: number; y: number; w: number; h: number; door: { x: number; y: number }; enterable: boolean;
 };
 export const BUILDINGS: Building[] = [
-  { id: "house", name: "家", x: 3, y: 1, w: 2, h: 2, door: { x: 3, y: 2 }, enterable: true },
-  { id: "cafe", name: "カフェ", x: 15, y: 2, w: 3, h: 2, door: { x: 16, y: 3 }, enterable: true },
-  { id: "hall", name: "村役場", x: 15, y: 9, w: 4, h: 3, door: { x: 16, y: 11 }, enterable: true },
-  { id: "library", name: "図書館", x: 16, y: 13, w: 3, h: 2, door: { x: 17, y: 14 }, enterable: false },
-  { id: "harbor", name: "港の待合所", x: 5, y: 20, w: 2, h: 2, door: { x: 5, y: 21 }, enterable: false },
-  { id: "radio", name: "ラジオ局", x: 25, y: 2, w: 2, h: 2, door: { x: 25, y: 3 }, enterable: false },
-  { id: "dev", name: "開発局", x: 24, y: 20, w: 3, h: 2, door: { x: 25, y: 21 }, enterable: false },
+  { id: "house", name: "家", x: 14, y: 6, w: 2, h: 2, door: { x: 14, y: 7 }, enterable: true },
+  { id: "cafe", name: "カフェ", x: 8, y: 11, w: 3, h: 2, door: { x: 9, y: 12 }, enterable: true },
+  { id: "hall", name: "村役場", x: 20, y: 4, w: 4, h: 3, door: { x: 21, y: 6 }, enterable: true },
+  { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: false },
+  { id: "harbor", name: "港の待合所", x: 10, y: 20, w: 2, h: 2, door: { x: 10, y: 21 }, enterable: false },
+  { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の崖の上。石段で下りる
+  { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: false }, // 砂漠の中
+  { id: "windmill", name: "風車", x: 9, y: 4, w: 2, h: 3, door: { x: 9, y: 6 }, enterable: false },
+  { id: "lighthouse", name: "灯台", x: 3, y: 10, w: 2, h: 3, door: { x: 3, y: 12 }, enterable: false },
 ];
 export const buildingAt = (x: number, y: number) =>
   BUILDINGS.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;

@@ -49,8 +49,10 @@ const DOOR_HINTS: Record<RoomId, string> = {
   cafe: "カフェの入り口だ。コーヒーのいい香りがする。",
   hall: "村役場の入り口だ。",
 };
-// 村長が歩き始める場所（村の北の道）と、1回ごとに立ち止まって休む確率
-const MAYOR_START = { x: 10, y: 4 };
+// 村人が最初に立つ場所（焚き火の広場の南）
+const START = { x: 16, y: 17 };
+// 村長が歩き始める場所（広場から北へのびる道）と、1回ごとに立ち止まって休む確率
+const MAYOR_START = { x: 16, y: 10 };
 const MAYOR_REST = 0.3;
 const REVERSE: Record<Dir, Dir> = { up: "down", down: "up", left: "right", right: "left" };
 
@@ -66,7 +68,7 @@ export function FarmScreen() {
   const { height } = useWindowDimensions();
 
   // 立ち位置と向き。ヒントとAボタンの表示に使う
-  const [pos, setPos] = useState({ x: 8, y: 9, dir: "down" as Dir, area: "farm" as Area });
+  const [pos, setPos] = useState({ ...START, dir: "down" as Dir, area: "farm" as Area });
 
   /* ---------- 種の判定 ---------- */
   const seedAt = useCallback((x: number, y: number): Seed | null => {
@@ -102,7 +104,7 @@ export function FarmScreen() {
   const [others] = useState(() => new Map<string, Other>());
   const sceneRef = useRef<Scene>({
     area: "farm",
-    player: { x: 8, y: 9, dir: "down", fromX: 8, fromY: 9, moveStart: 0, walkStart: 0, walkUntil: 0 } satisfies Player,
+    player: { ...START, dir: "down", fromX: START.x, fromY: START.y, moveStart: 0, walkStart: 0, walkUntil: 0 } satisfies Player,
     mayor: { ...MAYOR_START, dir: "down", fromX: MAYOR_START.x, fromY: MAYOR_START.y, moveStart: 0, walkStart: 0, walkUntil: 0 },
     others,
     seeds: [],
@@ -263,6 +265,12 @@ export function FarmScreen() {
     }
     if (tileAt(pos.x + dx, pos.y + dy) === "V") {
       return { label: "…", hint: "船が停まっている。", run: null };
+    }
+    if (tileAt(pos.x + dx, pos.y + dy) === "O") {
+      return { label: "…", hint: "焚き火だ。ぱちぱちと火がはぜている。", run: null };
+    }
+    if (tileAt(pos.x + dx, pos.y + dy) === "L") {
+      return { label: "…", hint: "ベンチだ。", run: null };
     }
     const building = buildingAt(pos.x + dx, pos.y + dy);
     if (building && building.enterable && building.door.x === pos.x + dx && building.door.y === pos.y + dy) {

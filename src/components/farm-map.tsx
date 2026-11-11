@@ -7,7 +7,7 @@ import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, DESERT_DEPTH, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
+  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
   VIEW_TILES_ACROSS, cropById, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
@@ -19,7 +19,7 @@ const H = ROWS * TILE;
 // 画面に映す範囲（マップの画素単位）と、村人を置く高さ（画面の上からの割合）
 type ViewSize = { w: number; h: number; focusY: number };
 const MARGIN = 2; // マップの外にも海を何マスぶん見せるか
-const NORTH = (DESERT_DEPTH + MARGIN) * TILE; // 北は砂漠の先の砂嵐まで見せる
+const NORTH = MARGIN * TILE;
 // 南の海は広めに見せる。南の岸辺に立っても、桟橋と船が下の操作部に隠れないように
 const SOUTH_TILES = 10;
 const SOUTH = SOUTH_TILES * TILE;
@@ -154,6 +154,62 @@ function drawMailbox(X: number, Y: number, tx: number, ty: number, hasUnread: bo
   rect(X + 4, Y + 3, 8, 1, "#e06a5c");
   if (hasUnread) { rect(X + 12, Y + 1, 2, 5, "#7a5a3a"); rect(X + 12, Y + 1, 3, 2, "#f2d04b"); }
 }
+// 岩場（海岸の崖）。草の上に灰茶の岩
+function drawRock(X: number, Y: number, tx: number, ty: number) {
+  drawGrass(X, Y, tx, ty);
+  const h = hash(tx, ty);
+  rect(X + 1, Y + 4, 14, 11, "#8a8478");
+  rect(X + 3, Y + 2, 10, 2, "#8a8478");
+  rect(X + 3, Y + 3, 5, 3, "#aaa498"); // 光の当たる面
+  rect(X + 11, Y + 5, 3, 9, "#77716a");
+  rect(X + 1, Y + 13, 14, 2, "#6b665c"); // 足元の影
+  if (h % 3 === 0) rect(X + 4 + (h % 5), Y + 8, 4, 1, "#6b665c"); // ひび
+}
+// 砂漠のサボテン
+function drawCactus(X: number, Y: number, tx: number, ty: number) {
+  drawDesert(X, Y, tx, ty);
+  rect(X + 5, Y + 15, 6, 1, "#cfb070");
+  rect(X + 6, Y + 2, 4, 13, "#4f8f3a");
+  rect(X + 2, Y + 6, 2, 5, "#4f8f3a");
+  rect(X + 2, Y + 10, 4, 2, "#4f8f3a");
+  rect(X + 12, Y + 4, 2, 5, "#4f8f3a");
+  rect(X + 10, Y + 8, 4, 2, "#4f8f3a");
+  rect(X + 7, Y + 3, 1, 11, "#7cc35a");
+}
+// 砂漠の岩山
+function drawMesa(X: number, Y: number, tx: number, ty: number) {
+  drawDesert(X, Y, tx, ty);
+  rect(X + 3, Y + 6, 10, 10, "#b8734a");
+  rect(X + 5, Y + 1, 6, 5, "#b8734a");
+  rect(X + 5, Y + 1, 6, 1, "#d39468");
+  rect(X + 3, Y + 6, 2, 1, "#d39468");
+  rect(X + 3, Y + 10, 10, 1, "#9a5c3a");
+  rect(X + 10, Y + 2, 3, 14, "#9a5c3a"); // 影の面
+}
+// 広場のベンチ（村役場の待合のベンチと同じ絵）
+function drawPlazaBench(X: number, Y: number, tx: number, ty: number) {
+  drawPath(X, Y, tx, ty);
+  drawBench(X, Y);
+}
+// 村の中央の焚き火（石の輪と薪）。炎は drawFlame で動かす
+function drawCampfire(X: number, Y: number, tx: number, ty: number) {
+  drawPath(X, Y, tx, ty);
+  rect(X + 1, Y + 9, 14, 6, "#8a8478");
+  rect(X + 1, Y + 9, 14, 1, "#aaa498");
+  rect(X + 3, Y + 10, 10, 4, "#4a3c30");
+  rect(X + 3, Y + 11, 10, 2, "#7a5235");
+  rect(X + 6, Y + 10, 4, 1, "#5a3e2b");
+}
+function drawFlame(X: number, Y: number, t: number) {
+  const k = Math.floor(t / 160) % 3;
+  rect(X + 4, Y + 5, 8, 6, "#e8892b");
+  rect(X + 5 + (k === 1 ? 1 : 0), Y + 3, 5, 2, "#e8892b");
+  rect(X + 7 + (k === 2 ? -1 : k), Y + 1 + k, 2, 2, "#e8892b");
+  rect(X + 6, Y + 6, 4, 5, "#f6d24a");
+  rect(X + 7, Y + 5 - (k % 2), 2, 1, "#f6d24a");
+  rect(X + 3 + k * 4, Y - 1 - k, 1, 1, "#f6d24a"); // 火の粉
+}
+
 /* ---------- 建物 ---------- */
 // 扉は村人1人ぶん（1マス）の大きさで、扉のマスにぴったり収める。X, Y は扉のマスの左上
 function drawDoor(X: number, Y: number, wood: string, frame: string) {
@@ -273,8 +329,66 @@ function drawDev(X: number, Y: number) {
   }
   drawDoor(...doorAt(X, Y, 1, 1), "#78909c", "#455a64");
 }
+// 風車（2×3マス）。羽根は drawWindmillBlades で回す
+function drawWindmill(X: number, Y: number) {
+  rect(X + 3, Y + 30, 26, 18, "#e6dccb");
+  rect(X + 5, Y + 18, 22, 12, "#e6dccb");
+  rect(X + 7, Y + 12, 18, 6, "#e6dccb");
+  for (const r of [24, 36, 42]) rect(X + 5, Y + r, 22, 1, "#cfc4b0");
+  rect(X + 25, Y + 18, 2, 30, "#cfc4b0"); // 影の面
+  rect(X + 6, Y + 6, 20, 7, "#b5523b"); // とんがり屋根
+  rect(X + 9, Y + 3, 14, 3, "#b5523b");
+  rect(X + 13, Y + 1, 6, 2, "#93402d");
+  rect(X + 20, Y + 22, 5, 5, "#7fb6d6");
+  drawDoor(...doorAt(X, Y, 0, 2), "#7a5235", "#5a3e2b");
+}
+function drawWindmillBlades(X: number, Y: number, t: number) {
+  const cx = X + 16, cy = Y + 13;
+  const diag = Math.floor(t / 700) % 2 === 1; // 十字と斜めを交互に（ゆっくり回って見える）
+  for (let i = 2; i < 14; i++) {
+    if (diag) {
+      for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        rect(cx + sx * i - 1, cy + sy * i - 1, 2, 2, "#7a5a3a");
+        if (i > 4) rect(cx + sx * i - 1 + sx * 2, cy + sy * i - 1 - sy * 2, 2, 2, "#f6efd9");
+      }
+    } else {
+      rect(cx - 1, cy - i - 1, 2, 2, "#7a5a3a"); rect(cx - 1, cy + i - 1, 2, 2, "#7a5a3a");
+      rect(cx - i - 1, cy - 1, 2, 2, "#7a5a3a"); rect(cx + i - 1, cy - 1, 2, 2, "#7a5a3a");
+      if (i > 4) {
+        rect(cx + 1, cy - i - 1, 3, 2, "#f6efd9"); rect(cx - 4, cy + i - 1, 3, 2, "#f6efd9");
+        rect(cx - i - 1, cy - 4, 2, 3, "#f6efd9"); rect(cx + i - 1, cy + 1, 2, 3, "#f6efd9");
+      }
+    }
+  }
+  rect(cx - 2, cy - 2, 4, 4, "#5a3e2b");
+}
+// 灯台（2×3マス）。赤白の塔。灯りは drawLighthouseLight で明滅させる
+function drawLighthouse(X: number, Y: number) {
+  rect(X + 4, Y + 30, 24, 18, "#f6efd9");
+  rect(X + 6, Y + 16, 20, 14, "#f6efd9");
+  rect(X + 6, Y + 20, 20, 5, "#c4473a");
+  rect(X + 4, Y + 34, 24, 5, "#c4473a");
+  rect(X + 24, Y + 16, 2, 32, "rgba(0,0,0,0.1)"); // 影の面
+  rect(X + 4, Y + 14, 24, 2, "#5d6470"); // 見張り台
+  rect(X + 8, Y + 6, 16, 8, "#2f2a24");
+  rect(X + 10, Y + 7, 12, 6, "#f2d04b");
+  rect(X + 7, Y + 3, 18, 3, "#c4473a"); // 屋根
+  rect(X + 13, Y + 1, 6, 2, "#c4473a");
+  drawDoor(...doorAt(X, Y, 0, 2), "#3f6f8a", "#2a4a5c");
+}
+function drawLighthouseLight(X: number, Y: number, t: number) {
+  if (Math.floor(t / 900) % 2) return;
+  rect(X + 11, Y + 8, 10, 4, "#fff6c2");
+  rect(X - 6, Y + 9, 12, 2, "rgba(255,246,194,0.5)"); // 海を照らす光
+  rect(X + 26, Y + 9, 10, 2, "rgba(255,246,194,0.35)");
+}
 const BUILDING_ART: Record<string, (X: number, Y: number) => void> = {
   house: drawHouse, cafe: drawCafe, library: drawLibrary, hall: drawHall, harbor: drawHarbor, radio: drawRadio, dev: drawDev,
+  windmill: drawWindmill, lighthouse: drawLighthouse,
+};
+// 毎フレーム動かす所（風車の羽根、灯台の灯り）
+const BUILDING_MOTION: Record<string, (X: number, Y: number, t: number) => void> = {
+  windmill: drawWindmillBlades, lighthouse: drawLighthouseLight,
 };
 
 // 桟橋：板張りの道が海へのびる
@@ -902,11 +1016,11 @@ function roomFrame(id: RoomId, art: RoomArt, scene: Scene, t: number, v: ViewSiz
 }
 
 /* ---------- 1フレーム ---------- */
-// 波・池・郵便受け以外は動かないので、一度だけ描いておく（まわりの海も含める）
+// 波・池・郵便受け・焚き火の炎・風車の羽根・灯台の灯り以外は動かないので、一度だけ描いておく（まわりの海も含める）
 function staticLayer(): SkPicture {
   return createPicture((canvas) => {
     cv = canvas;
-    for (let y = -DESERT_DEPTH - MARGIN; y < ROWS + SOUTH_TILES; y++) {
+    for (let y = -MARGIN; y < ROWS + SOUTH_TILES; y++) {
       for (let x = -MARGIN; x < COLS + MARGIN; x++) {
         const X = x * TILE, Y = y * TILE;
         const c = tileAt(x, y);
@@ -918,6 +1032,11 @@ function staticLayer(): SkPicture {
         else if (c === "P") drawPath(X, Y, x, y);
         else if (c === "T") drawTree(X, Y, x, y);
         else if (c === "F") drawFence(X, Y, x, y);
+        else if (c === "R") drawRock(X, Y, x, y);
+        else if (c === "C") drawCactus(X, Y, x, y);
+        else if (c === "K") drawMesa(X, Y, x, y);
+        else if (c === "L") drawPlazaBench(X, Y, x, y);
+        else if (c === "O") drawCampfire(X, Y, x, y);
       }
     }
     BUILDINGS.forEach(drawBuilding);
@@ -945,8 +1064,10 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
         else if (c === "W") drawStormWind(x * TILE, y * TILE, x, y, t);
         else if (c === "~") drawWater(x * TILE, y * TILE, x, t);
         else if (c === "M") drawMailbox(x * TILE, y * TILE, x, y, scene.hasUnread);
+        else if (c === "O") drawFlame(x * TILE, y * TILE, t);
       }
     }
+    for (const b of BUILDINGS) if (inView(b.x, b.y) || inView(b.x + b.w, b.y + b.h)) BUILDING_MOTION[b.id]?.(b.x * TILE, b.y * TILE, t);
     const { x: px, y: py } = scene.player;
     for (const s of scene.seeds) {
       if (!inView(s.x, s.y)) continue;

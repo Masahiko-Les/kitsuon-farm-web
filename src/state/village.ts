@@ -40,7 +40,7 @@ const newId = () =>
 
 // others：描画ループが毎フレーム読む（React の再描画はしない）
 export function useVillagers(enabled: boolean, others: Map<string, Other>) {
-  const me = useRef<Spot>({ area: "farm", x: 8, y: 9, dir: "down" });
+  const me = useRef<Spot>({ area: "farm", x: 16, y: 17, dir: "down" }); // すぐに announce で本当の場所に変わる
   const ch = useRef<{ channel: RealtimeChannel; area: Shared; joined: boolean } | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gen = useRef(0); // 入り直しのたびに増やす。古い入室の処理を止める
