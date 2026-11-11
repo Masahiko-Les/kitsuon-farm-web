@@ -1,6 +1,6 @@
 import { AlphaType, ColorType, type SkImage, Skia } from "@shopify/react-native-skia";
 
-// 1ドットずつ色を置ける画用紙。動かない絵（地面・木・家）はここに描き、1枚の画像にして使い回す。
+// 1ドットずつ色を置ける画用紙。花のドット絵（flowers.ts）をここに描く
 // ox, oy は、マップの座標 (0, 0) が画用紙のどこに来るか
 export type RGB = readonly [number, number, number];
 export const hex = (s: string): RGB => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)];

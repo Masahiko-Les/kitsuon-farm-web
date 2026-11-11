@@ -91,7 +91,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // 「ありがとう」を読んだ印（作物は書き換えられないので端末に保存）
+  // 「ありがとう」を読んだ印（花の記録は書き換えられないので端末に保存）
   const markThanksSeen = useCallback((id: string) => {
     setSeenThanks((prev) => {
       if (prev.has(id)) return prev;
@@ -202,7 +202,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `waterer_uid=eq.${uid}` }, (p) => {
         if (p.eventType === "INSERT") {
           const c = p.new as { sower_name: string; crop_type: string };
-          toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が実りました。`);
+          toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が咲きました。`);
         }
         reload("crops");
       })

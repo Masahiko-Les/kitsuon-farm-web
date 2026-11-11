@@ -16,7 +16,7 @@ export default function Settings() {
   const confirmDelete = async () => {
     const ok = await confirmDialog({
       title: "すべてのデータを削除",
-      message: "あなたが蒔いた種、送った手紙・届いた手紙、作物、カフェの言葉、村人名をすべて消し、アカウントも削除します。元には戻せません。",
+      message: "あなたが蒔いた種、送った手紙・届いた手紙、花、カフェの言葉、村人名をすべて消し、アカウントも削除します。元には戻せません。",
       ok: "削除する",
       destructive: true,
     });
@@ -48,7 +48,7 @@ export default function Settings() {
       ) : null}
       <View style={{ height: 24 }} />
       <Row label="すべてのデータを削除" danger onPress={confirmDelete} disabled={busy} />
-      <Small>自分の種・手紙・作物・カフェの言葉・村人名を消し、匿名アカウントも削除します。</Small>
+      <Small>自分の種・手紙・花・カフェの言葉・村人名を消し、匿名アカウントも削除します。</Small>
       <View style={{ height: 32 }} />
       <Small>村人ID（運営に問い合わせるときに使います。選択してコピーできます）</Small>
       <T selectable style={s.uid}>{uid}</T>

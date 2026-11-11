@@ -46,35 +46,46 @@ export const WALKABLE = new Set([".", ",", "P", "D", "B"]);
 // 農場で「苦労の種」を蒔けるマス。砂漠（D）には「挑戦の種」を蒔ける（canSow）
 export const SOWABLE = new Set([".", ","]);
 
+// 「ありがとう」で咲く花（Web版だけ。iPhone版は野菜のまま）。絵は src/components/flowers.ts のドット絵
+// 型や列の名前は、前の「作物」のまま（crops.crop_type に id を入れる）
 export const CROPS = [
-  { id: "tomato", name: "トマト", emoji: "🍅" },
-  { id: "carrot", name: "にんじん", emoji: "🥕" },
-  { id: "eggplant", name: "なす", emoji: "🍆" },
-  { id: "cucumber", name: "きゅうり", emoji: "🥒" },
-  { id: "corn", name: "とうもろこし", emoji: "🌽" },
-  { id: "potato", name: "じゃがいも", emoji: "🥔" },
-  { id: "pepper", name: "ピーマン", emoji: "🫑" },
-  { id: "pumpkin", name: "かぼちゃ", emoji: "🎃" },
-  { id: "strawberry", name: "いちご", emoji: "🍓" },
-  { id: "cabbage", name: "はくさい", emoji: "🥬" },
+  { id: "tulip", name: "チューリップ" },
+  { id: "sunflower", name: "ひまわり" },
+  { id: "cosmos", name: "コスモス" },
+  { id: "nanohana", name: "なのはな" },
+  { id: "daisy", name: "デイジー" },
+  { id: "morningglory", name: "あさがお" },
+  { id: "suzuran", name: "すずらん" },
+  { id: "lavender", name: "ラベンダー" },
+  { id: "pansy", name: "パンジー" },
+  { id: "sweetpea", name: "スイートピー" },
 ] as const;
-// 砂漠の「挑戦の種」に「ありがとう」を伝えると実るもの
+// 砂漠の「挑戦の種」に「ありがとう」を伝えると咲く花
 export const DESERT_CROPS = [
-  { id: "desert-cactus", name: "サボテンの花", emoji: "🌵" },
-  { id: "desert-watermelon", name: "スイカ", emoji: "🍉" },
-  { id: "desert-dates", name: "デーツ", emoji: "🌴" },
-  { id: "desert-olive", name: "オリーブ", emoji: "🫒" },
-  { id: "desert-sunflower", name: "ひまわり", emoji: "🌻" },
-  { id: "desert-melon", name: "メロン", emoji: "🍈" },
-  { id: "desert-pineapple", name: "パイナップル", emoji: "🍍" },
-  { id: "desert-lemon", name: "レモン", emoji: "🍋" },
-  { id: "desert-coconut", name: "ココナッツ", emoji: "🥥" },
-  { id: "desert-mango", name: "マンゴー", emoji: "🥭" },
+  { id: "desert-cactus", name: "サボテンの花" },
+  { id: "desert-gekka", name: "月下美人" },
+  { id: "desert-rose", name: "デザートローズ" },
+  { id: "desert-bougainvillea", name: "ブーゲンビリア" },
+  { id: "desert-matsubagiku", name: "マツバギク" },
+  { id: "desert-portulaca", name: "ポーチュラカ" },
+  { id: "desert-hanakirin", name: "ハナキリン" },
+  { id: "desert-aloe", name: "アロエの花" },
+  { id: "desert-gazania", name: "ガザニア" },
+  { id: "desert-strelitzia", name: "ストレリチア" },
 ] as const;
 export type Crop = (typeof CROPS)[number] | (typeof DESERT_CROPS)[number];
 const ALL_CROPS: readonly Crop[] = [...CROPS, ...DESERT_CROPS];
-export const cropById = (id: string): Crop => ALL_CROPS.find((c) => c.id === id) ?? CROPS[0];
-// 種の場所で選ぶ。砂漠の挑戦の種なら砂漠の作物、農場の種なら野菜
+// 花にする前に実った野菜・果物の id。同じ並び順の花として読みかえる
+const LEGACY: Record<string, string> = Object.fromEntries([
+  ...["tomato", "carrot", "eggplant", "cucumber", "corn", "potato", "pepper", "pumpkin", "strawberry", "cabbage"].map((id, i) => [id, CROPS[i].id]),
+  ...["desert-cactus", "desert-watermelon", "desert-dates", "desert-olive", "desert-sunflower", "desert-melon", "desert-pineapple", "desert-lemon", "desert-coconut", "desert-mango"]
+    .map((id, i) => [id, DESERT_CROPS[i].id]),
+]);
+export const cropById = (id: string): Crop => {
+  const key = LEGACY[id] ?? id;
+  return ALL_CROPS.find((c) => c.id === key) ?? CROPS[0];
+};
+// 種の場所で選ぶ。砂漠の挑戦の種なら砂漠の花、農場の種なら農場の花
 export const randomCrop = (seedId: string): Crop => {
   const list = isDesertSeedId(seedId) ? DESERT_CROPS : CROPS;
   return list[Math.floor(Math.random() * list.length)];

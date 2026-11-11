@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
 import { addEffect } from "@/components/farm-map";
+import { FlowerIcon } from "@/components/flower-icon";
 import { useModal } from "@/components/modal-host";
 import { useToast } from "@/components/toast";
 import {
@@ -153,7 +154,7 @@ function WateredSeedModal({ seed }: { seed: Seed }) {
       <SectionLabel>あなたが送った手紙</SectionLabel>
       <Paper text={letter} from={`${name}より`} />
       {crop
-        ? <Body style={{ marginTop: 14 }}>{`${seed.ownerName}さんから「ありがとう」が届き、${cropById(crop.cropType).name}が実りました。`}</Body>
+        ? <Body style={{ marginTop: 14 }}>{`${seed.ownerName}さんから「ありがとう」が届き、${cropById(crop.cropType).name}が咲きました。`}</Body>
         : null}
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
@@ -257,7 +258,7 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
 /* =========================================================
    郵便受けと手紙
    ========================================================= */
-export const THANKS_TEXT = "収穫しました。ありがとう。";
+export const THANKS_TEXT = "花が咲きました。ありがとう。";
 
 // 届いた手紙と、水やりした種の人からの「ありがとう」を、新しい順に並べる
 function MailboxModal() {
@@ -280,7 +281,7 @@ function MailboxModal() {
               const unread = !seenThanks.has(c.id);
               return (
                 <Pressable key={`thanks-${c.id}`} style={s.listItem} onPress={() => a.showThanks(c)} accessibilityRole="button">
-                  <T style={s.listIcon}>{unread ? "💌" : cropById(c.cropType).emoji}</T>
+                  {unread ? <T style={s.listIcon}>💌</T> : <FlowerIcon id={cropById(c.cropType).id} size={32} />}
                   <View style={s.listMain}>
                     <T style={s.listName}>
                       {`${c.sowerName}さんから`}
@@ -293,10 +294,10 @@ function MailboxModal() {
             }
             const l = item.letter;
             const crop = l.status === "thanked" ? cropForLetter(crops, l.id) : null;
-            const icon = crop ? crop.emoji : l.status === "unread" ? "✉️" : "📄";
+            const icon = l.status === "unread" ? "✉️" : "📄";
             return (
               <Pressable key={l.id} style={s.listItem} onPress={() => a.showLetter(l)} accessibilityRole="button">
-                <T style={s.listIcon}>{icon}</T>
+                {crop ? <FlowerIcon id={crop.id} size={32} /> : <T style={s.listIcon}>{icon}</T>}
                 <View style={s.listMain}>
                   <T style={s.listName}>
                     {`${l.fromName}さんから`}
@@ -324,13 +325,13 @@ function ThanksModal({ crop: c }: { crop: CropDoc }) {
   return (
     <>
       <View style={{ alignItems: "center" }}>
-        <Animated.View entering={ZoomIn.springify().damping(9)}><T style={s.cropBig}>{info.emoji}</T></Animated.View>
+        <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={info.id} size={96} style={s.cropBig} /></Animated.View>
         <Title>{`${c.sowerName}さんから`}</Title>
       </View>
       <Animated.View entering={FadeInDown.duration(600)}>
         <Paper text={THANKS_TEXT} from={`${c.sowerName}より`} minLines={1} />
       </Animated.View>
-      <Body style={{ marginTop: 14 }}>{`あなたの水やりで${info.name}が実りました。`}</Body>
+      <Body style={{ marginTop: 14 }}>{`あなたの水やりで${info.name}が咲きました。`}</Body>
       <Actions>
         <Btn kind="quiet" label="郵便受けにもどる" onPress={a.showMailbox} />
         <Btn label="思い出を見る" onPress={() => a.showMemory(c)} />
@@ -361,7 +362,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
   const thanks = async () => {
     setBusy(true);
     try {
-      // 同じ種からは、誰の水やりでも同じ作物が実る。最初の1つだけランダムに決める
+      // 同じ種からは、誰の水やりでも同じ花が咲く。最初の1つだけランダムに決める
       const sameSeed = crops.find((x) => x.seedId === letter.seedId && x.sowerUid === uid);
       const c = sameSeed ? cropById(sameSeed.cropType) : randomCrop(letter.seedId);
       await sayThanks(uid, name, letter, c.id);
@@ -409,8 +410,8 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
         <Paper text={letter.text} from={`${letter.fromName}より`} />
       </Animated.View>
       {thanked
-        ? <Body style={{ marginTop: 14 }}>{`ありがとうを伝えました。${crop ? crop.name : "作物"}が実り、${letter.fromName}さんにも届きました。`}</Body>
-        : <Small>「ありがとう」を押すと作物が実り、手紙をくれた人にも同じ作物が届きます。</Small>}
+        ? <Body style={{ marginTop: 14 }}>{`ありがとうを伝えました。${crop ? crop.name : "花"}が咲き、${letter.fromName}さんにも届きました。`}</Body>
+        : <Small>「ありがとう」を押すと花が咲き、手紙をくれた人にも同じ花が届きます。</Small>}
       <Actions>
         <Btn kind="quiet" label="郵便受けにもどる" onPress={a.showMailbox} />
         {thanked ? null : <Btn label="ありがとう" onPress={thanks} disabled={busy} />}
@@ -427,8 +428,8 @@ function HarvestModal({ letter, crop }: { letter: Letter; crop: Crop }) {
   const a = useActions();
   return (
     <View style={{ alignItems: "center" }}>
-      <Animated.View entering={ZoomIn.springify().damping(9)}><T style={s.cropBig}>{crop.emoji}</T></Animated.View>
-      <Title>{`${crop.name}が実りました`}</Title>
+      <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={crop.id} size={96} style={s.cropBig} /></Animated.View>
+      <Title>{`${crop.name}が咲きました`}</Title>
       <Body style={{ textAlign: "center" }}>{`${letter.fromName}さんにも、同じ${crop.name}が届きました。`}</Body>
       <Actions center>
         <Btn kind="quiet" label="とじる" onPress={a.close} />
@@ -445,27 +446,27 @@ function BookModal() {
   const { crops: all } = useFarm();
   const a = useActions();
   const crops = [...all].sort((x, y) => millis(y.harvestedAt) - millis(x.harvestedAt));
-  const got = new Set(crops.map((c) => c.cropType));
+  const got = new Set(crops.map((c) => cropById(c.cropType).id)); // 花にする前の id も、花として数える
   return (
     <>
       <Title>思い出帳</Title>
       <T style={s.dex}>{`図鑑 ${CROPS.filter((c) => got.has(c.id)).length} / ${CROPS.length}種類`}</T>
       <View style={s.dexRow} accessible={false}>
-        {CROPS.map((c) => <T key={c.id} style={[s.dexEmoji, !got.has(c.id) && s.missing]}>{c.emoji}</T>)}
+        {CROPS.map((c) => <FlowerIcon key={c.id} id={c.id} size={32} dim={!got.has(c.id)} />)}
       </View>
       <T style={s.dex}>{`砂漠の図鑑 ${DESERT_CROPS.filter((c) => got.has(c.id)).length} / ${DESERT_CROPS.length}種類`}</T>
       <View style={s.dexRow} accessible={false}>
-        {DESERT_CROPS.map((c) => <T key={c.id} style={[s.dexEmoji, !got.has(c.id) && s.missing]}>{c.emoji}</T>)}
+        {DESERT_CROPS.map((c) => <FlowerIcon key={c.id} id={c.id} size={32} dim={!got.has(c.id)} />)}
       </View>
       {crops.length === 0 ? (
-        <Body>まだ作物はありません。種に水やりするか、届いた手紙に「ありがとう」を伝えると、作物が実ってここに入ります。</Body>
+        <Body>まだ花はありません。種に水やりするか、届いた手紙に「ありがとう」を伝えると、花が咲いてここに入ります。</Body>
       ) : (
         <View style={s.grid}>
           {crops.map((c) => {
             const info = cropById(c.cropType);
             return (
               <Pressable key={c.id} style={s.cell} onPress={() => a.showMemory(c)} accessibilityRole="button" accessibilityLabel={`${info.name}の思い出`}>
-                <T style={s.cellEmoji}>{info.emoji}</T>
+                <FlowerIcon id={info.id} size={48} />
               </Pressable>
             );
           })}
@@ -531,7 +532,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
   return (
     <>
       <View style={{ alignItems: "center" }}>
-        <T style={s.cropBig}>{info.emoji}</T>
+        <FlowerIcon id={info.id} size={96} style={s.cropBig} />
         <Title>{`${info.name}　${dateText(c.harvestedAt)}`}</Title>
       </View>
       <Body>{lead}</Body>
@@ -604,17 +605,15 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  listIcon: { fontSize: 24, width: 30, textAlign: "center" },
+  listIcon: { fontSize: 24, width: 32, textAlign: "center" },
   listMain: { flex: 1, minWidth: 0 },
   listName: { fontSize: 15 },
   unread: { fontSize: 12, color: C.error },
   listSub: { fontSize: 12, color: C.sub, marginTop: 2 },
   envelope: { fontSize: 40, textAlign: "center", lineHeight: 48, marginBottom: 8 },
-  cropBig: { fontSize: 76, lineHeight: 90, marginTop: 6, marginBottom: 10, textAlign: "center" },
+  cropBig: { marginTop: 6, marginBottom: 10 },
   dex: { fontSize: 14, color: C.sub },
-  dexRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 2, marginBottom: 12 },
-  dexEmoji: { fontSize: 22, lineHeight: 30 },
-  missing: { opacity: 0.25 },
+  dexRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 2, marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cell: {
     width: "22.5%",
@@ -626,7 +625,6 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 6,
   },
-  cellEmoji: { fontSize: 32, lineHeight: 40 },
   support: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", backgroundColor: C.moss, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 },
   supportText: { fontSize: 15 },
   supportLink: { fontSize: 15, color: C.leaf, textDecorationLine: "underline" },

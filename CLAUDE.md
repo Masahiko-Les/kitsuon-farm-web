@@ -12,13 +12,6 @@
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
 - `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。
 
-### 地図の絵（Web版だけ。2026年11月に描き直した）
-- 茂った木々・あたたかい光・青緑の影の雰囲気。1マス16ドットのまま。色は `src/components/palette.ts`。
-- 動かない絵は1ドットずつ `PixMap`（`src/components/pixmap.ts`）に描き、1枚の画像にして使い回す：地面・木・柵・家は `forest.ts`、海・砂漠・建物・港は `village.ts`、建物の中の床と壁は `rooms.ts`。
-- 木の葉は行ごとの層にして、木の奥（上の行）にいる村人・村長より手前に重ねる（`farm-map.tsx` の `frame`）。
-- 画面全体に、左上からの光（SoftLight）と、ふちの青緑の暗さ、漂う光の粒を重ねる（`airPaints` / `drawMotes`）。
-- 動くもの（波・池のきらめき・砂嵐の風・郵便受け・種・人物・家具）は `farm-map.tsx` で毎フレーム描く。
-
 ### 吃音村カフェ（Web版だけ。https://github.com/Masahiko-Les/Kitsuonmura-cafe から移植）
 - 農場のカフェ（BUILDINGS の cafe）に入れる。店内の間取りと座っている村人は `src/lib/game.ts` の `ROOMS.cafe` と `CAFE_GUESTS`、描画は `src/components/farm-map.tsx` の `cafeArt()`。
 - マスターに話しかけるか、空いている丸椅子に座ると `/cafe` が開く。会話の流れ・テーマ・質問・気持ち・通報・「わたしの言葉」・運営画面は、吃音村カフェの仕様のまま（`src/lib/cafe.ts`、`src/lib/cafe-api.ts`、`src/screens/cafe-*.tsx`）。質問の id は回答の保存に使うので変えない。
@@ -31,7 +24,12 @@
 ### 砂漠の「挑戦の種」（Web版だけ）
 - 島の北の砂漠（`tileAt` が "D"）では、苦労ではなく「挑戦」（これからのことも、やってみたことも）を種として蒔ける。水やり・ありがとう・通報・ブロックなどの仕組みは農場とまったく同じ。
 - 挑戦の種かどうかは種の場所（ID の「x_y」）で決める（`isDesert` / `isDesertSeedId` / `seedNameOf`。`src/lib/game.ts`）。データベースに印は持たない。
-- 「ありがとう」で実るのは砂漠の作物 `DESERT_CROPS`（10種類。id は `desert-` で始まる）。思い出帳には「砂漠の図鑑」として並べる。
+- 「ありがとう」で咲くのは砂漠の花 `DESERT_CROPS`（10種類。id は `desert-` で始まる）。思い出帳には「砂漠の図鑑」として並べる。
+
+### 花（Web版だけ。2026年11月に作物から変えた）
+- 「ありがとう」で実るのは野菜ではなく花。農場は `CROPS`（チューリップなど10種類）、砂漠は `DESERT_CROPS`（サボテンの花など10種類）で、種類を分ける（`src/lib/game.ts`）。iPhone版は野菜のまま。
+- 絵は絵文字ではなく16ドットのドット絵（`src/components/flowers.ts`）。画面には `FlowerIcon`（`flower-icon.tsx`）で、ドットを整数倍に広げた PNG として出す。大きさは16の倍数（32・48・96）にする。
+- 型・テーブル・列の名前は「作物」のまま（`crops.crop_type`）。花にする前の id（tomato など）は、`cropById` の中で同じ並び順の花に読みかえる。
 
 ### 村役場（Web版だけ）
 - 農場の村役場（BUILDINGS の hall）に入れる。間取りは `ROOMS.hall`、描画は `farm-map.tsx` の `hallArt()`。

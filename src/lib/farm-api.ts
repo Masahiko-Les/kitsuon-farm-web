@@ -170,7 +170,7 @@ export async function markRead(letter: Letter) {
   must(await supabase.from("letters").update({ status: "read" }).eq("id", letter.id));
 }
 
-// ありがとう（RPC。手紙を thanked にして、2人の作物を作る）
+// ありがとう（RPC。手紙を thanked にして、2人に花を届ける。テーブルは crops のまま）
 export async function sayThanks(_uid: string, _name: string, letter: Letter, cropType: string) {
   must(await supabase.rpc("say_thanks", { p_letter_id: letter.id, p_crop_type: cropType }));
 }
@@ -189,7 +189,7 @@ export async function blockUser(uid: string, otherUid: string) {
 }
 
 /* ---------- すべてのデータを削除 ---------- */
-// 作物を消してからアカウントを消す（ほかのデータはアカウントと一緒に消える）。そのあとログアウトする
+// 花の記録（crops）を消してからアカウントを消す（ほかのデータはアカウントと一緒に消える）。そのあとログアウトする
 export async function deleteEverything(_uid: string) {
   must(await supabase.rpc("delete_my_account"));
   await supabase.auth.signOut({ scope: "local" });
