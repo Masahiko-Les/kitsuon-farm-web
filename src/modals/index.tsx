@@ -14,7 +14,7 @@ import {
   type CropDoc, type Letter, type Seed, blockUser, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
   reportSeed, sayThanks, sowSeed, waterSeed,
 } from "@/lib/farm-api";
-import { CROPS, type Crop, DESERT_CROPS, SEED_MIN_CHARS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
+import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
 import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
 import { checkText } from "@/lib/text";
@@ -69,7 +69,7 @@ function SowModal({ x, y }: { x: number; y: number }) {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    const res = checkText(text.current, SEED_MIN_CHARS, null);
+    const res = checkText(text.current, 0, null);
     if (res.error) { setErr(res.error); return; }
     setBusy(true);
     setErr("");
@@ -98,13 +98,13 @@ function SowModal({ x, y }: { x: number; y: number }) {
         <>
           <Title>挑戦の種を蒔く</Title>
           <Body>書いた挑戦は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
-          <PaperInput placeholder="吃音と向き合う挑戦を、30文字以上・300文字以内で書いてみよう（これからのことも、やってみたことも）" minChars={SEED_MIN_CHARS} maxLines={null} onChangeText={(t) => { text.current = t; }} />
+          <PaperInput placeholder="吃音と向き合う挑戦を、300文字以内で書いてみよう（これからのことも、やってみたことも）" maxLines={null} onChangeText={(t) => { text.current = t; }} />
         </>
       ) : (
         <>
           <Title>種を蒔く</Title>
           <Body>書いた苦労は、この場所に種として埋まります。見つけた人だけが読めます。</Body>
-          <PaperInput placeholder="吃音の苦労を、30文字以上・300文字以内で書いてみよう" minChars={SEED_MIN_CHARS} maxLines={null} onChangeText={(t) => { text.current = t; }} />
+          <PaperInput placeholder="吃音の苦労を、300文字以内で書いてみよう" maxLines={null} onChangeText={(t) => { text.current = t; }} />
         </>
       )}
       <ErrorText>{err}</ErrorText>

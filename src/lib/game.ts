@@ -2,8 +2,6 @@ export const MAP_ID = "farm01";
 export const MAX_WATERERS = 5;
 export const MAX_LINES = 10;
 export const MAX_CHARS = 300;
-// 種は短すぎると水やりの手紙を書きにくいので、空白と改行を除いてこの字数以上にする
-export const SEED_MIN_CHARS = 30; // 種（苦労の種・挑戦の種）は「30文字以上・300文字以内」。行数の制限はない
 export const NAME_MAX = 12;
 export const TILE = 16;
 export const TERMS_VERSION = 3; // 2: 吃音村カフェを追加（Web版） / 3: 砂漠の挑戦の種を追加
