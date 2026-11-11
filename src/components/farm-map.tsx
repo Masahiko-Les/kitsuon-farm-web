@@ -165,6 +165,31 @@ function drawRock(X: number, Y: number, tx: number, ty: number) {
   rect(X + 1, Y + 13, 14, 2, "#6b665c"); // 足元の影
   if (h % 3 === 0) rect(X + 4 + (h % 5), Y + 8, 4, 1, "#6b665c"); // ひび
 }
+// 丘の崖（ラジオ局の丘）。上が丘の草地なら、ふちに草をかぶせる
+const CLIFF = new Set(["X", "^"]);
+function drawCliff(X: number, Y: number, tx: number, ty: number) {
+  rect(X, Y, 16, 16, "#9c8b70");
+  const h = hash(tx, ty);
+  rect(X, Y + 5, 16, 1, "#85755c");
+  rect(X, Y + 11, 16, 1, "#85755c");
+  rect(X + (h % 10) + 2, Y + 1, 4, 3, "#b3a286");
+  rect(X + ((h >> 5) % 10) + 1, Y + 7, 5, 3, "#b3a286");
+  rect(X + ((h >> 9) % 12) + 2, Y + 12, 1, 3, "#7a6b55");
+  if (!CLIFF.has(tileAt(tx, ty - 1))) { rect(X, Y, 16, 3, "#8dbf5a"); rect(X, Y + 3, 16, 1, "#6fa347"); }
+  if (!CLIFF.has(tileAt(tx, ty + 1))) rect(X, Y + 14, 16, 2, "#7a6b55"); // ふもとの影
+  if (tileAt(tx - 1, ty) === ".") rect(X, Y, 2, 16, "#8dbf5a"); // 横のふちの草
+  if (tileAt(tx + 1, ty) === ".") rect(X + 14, Y, 2, 16, "#6fa347");
+}
+// 崖を斜めに下りる石段
+function drawStairs(X: number, Y: number, tx: number, ty: number) {
+  rect(X, Y, 16, 16, "#85755c");
+  for (let i = 0; i < 4; i++) {
+    rect(X + 1, Y + i * 4, 14, 3, "#d8cbb0");
+    rect(X + 1, Y + i * 4 + 3, 14, 1, "#a8987a");
+  }
+  if (!CLIFF.has(tileAt(tx - 1, ty))) rect(X, Y, 1, 16, "#6b5d48");
+  if (!CLIFF.has(tileAt(tx + 1, ty))) rect(X + 15, Y, 1, 16, "#6b5d48");
+}
 // 砂漠のサボテン
 function drawCactus(X: number, Y: number, tx: number, ty: number) {
   drawDesert(X, Y, tx, ty);
@@ -1033,6 +1058,8 @@ function staticLayer(): SkPicture {
         else if (c === "T") drawTree(X, Y, x, y);
         else if (c === "F") drawFence(X, Y, x, y);
         else if (c === "R") drawRock(X, Y, x, y);
+        else if (c === "X") drawCliff(X, Y, x, y);
+        else if (c === "^") drawStairs(X, Y, x, y);
         else if (c === "C") drawCactus(X, Y, x, y);
         else if (c === "K") drawMesa(X, Y, x, y);
         else if (c === "L") drawPlazaBench(X, Y, x, y);

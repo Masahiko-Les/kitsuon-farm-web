@@ -7,18 +7,18 @@ export const TILE = 16;
 export const TERMS_VERSION = 3; // 2: 吃音村カフェを追加（Web版） / 3: 砂漠の挑戦の種を追加
 
 // S=海 D=砂漠 W=砂嵐 T=木 .=草 ,=畑 P=道 ~=池 F=柵 H=建物 M=郵便受け（桟橋 B と船 V は HARBOR で決める）
-// R=岩場 C=サボテン K=岩山 O=焚き火 L=ベンチ（どれも通れない）
+// R=岩場 X=崖 C=サボテン K=岩山 O=焚き火 L=ベンチ（どれも通れない） ^=石段（歩ける。種は蒔けない）
 // 2026年11月に作り直した地形：西は海、北西の崖の上にラジオ局、北東は砂漠、中央は焚き火の広場、東と南東は柵の畑、南西に港
 export const MAP = [
-  "SSRRRRRRRRRRRTTTTTTTTTTWWWWWWWWWWWWWWWWWWWWWWWWW",
-  "SSRRRHHRRRRRRTTTTTTTTTTTTDDDDDDDDDDDDDKKDDDDDDDW",
-  "SSRRRHHRRRRRRTTT...TTTT.DDDDDCDDDDDDDDDDDCDDDDDW",
-  "SSRRRPRRRRR.............DDDDDDDDHHHDCDDDDDDDDDDW",
-  "SSRRRPRRRHH.........HHHH.DDDDDDDHHHDDDDDDDDKDDDW",
-  "SSRRRPRRRHH.......T.HHHH.DDPPPPPPPDDDDDDDDDDDDDW",
-  "SSRRRPRRRHH.T.HH..T.HHHH..DPDDDDDDDDDDDDDDDDCDDW",
-  "SSRRRP.....T..HHM....P....DPDDDCDDDDDDDDDDDDDDDW",
-  "SSRRRPPPPPPPPPPPPPPPPPPPPPPPDDDDDDDDDCDDDDDDDDDW",
+  "SST.....TTTTTTTTTTTTTTTWWWWWWWWWWWWWWWWWWWWWWWWW",
+  "SST..HH..TTTTTTTTTTTTTTTTDDDDDDDDDDDDDKKDDDDDDDW",
+  "SS...HH...T..TTT...TTTT.DDDDDCDDDDDDDDDDDCDDDDDW",
+  "SS........T.............DDDDDDDDHHHDCDDDDDDDDDDW",
+  "SSXXXX^XXXXHH.......HHHH.DDDDDDDHHHDDDDDDDDKDDDW",
+  "SSXXXX^^XXXHH.....T.HHHH.DDPPPPPPPDDDDDDDDDDDDDW",
+  "SSXXXXX^^XXHH.HH..T.HHHH..DPDDDDDDDDDDDDDDDDCDDW",
+  "SS......P.....HHM....P....DPDDDCDDDDDDDDDDDDDDDW",
+  "SS......PPPPPPPPPPPPPPPPPPPPDDDDDDDDDCDDDDDDDDDW",
   "SSS........T....P..........DDDCDDDDDDDDDKKDDDDDW",
   "SS.HH.TT....T...P....T.T...DDDDDDDDKDDDDDDDDDDDW",
   "SS.HH...HHH.....P.....T.T.FFFFFFFFFFFFDDDDCDDDDW",
@@ -41,7 +41,7 @@ export const COLS = MAP[0].length;
 export const ROWS = MAP.length;
 // 画面に横に何マス見せるか（縦は画面の高さで決まる）。カメラが村人を追いかける
 export const VIEW_TILES_ACROSS = 7.5;
-export const WALKABLE = new Set([".", ",", "P", "D", "B"]);
+export const WALKABLE = new Set([".", ",", "P", "D", "B", "^"]);
 // 農場で「苦労の種」を蒔けるマス。砂漠（D）には「挑戦の種」を蒔ける（canSow）
 export const SOWABLE = new Set([".", ","]);
 
@@ -137,9 +137,9 @@ export const BUILDINGS: Building[] = [
   { id: "hall", name: "村役場", x: 20, y: 4, w: 4, h: 3, door: { x: 21, y: 6 }, enterable: true },
   { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: false },
   { id: "harbor", name: "港の待合所", x: 10, y: 20, w: 2, h: 2, door: { x: 10, y: 21 }, enterable: false },
-  { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の崖の上。石段で下りる
+  { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の丘の上。斜めの石段で下りる
   { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: false }, // 砂漠の中
-  { id: "windmill", name: "風車", x: 9, y: 4, w: 2, h: 3, door: { x: 9, y: 6 }, enterable: false },
+  { id: "windmill", name: "風車", x: 11, y: 4, w: 2, h: 3, door: { x: 11, y: 6 }, enterable: false }, // 丘のふもと
   { id: "lighthouse", name: "灯台", x: 3, y: 10, w: 2, h: 3, door: { x: 3, y: 12 }, enterable: false },
 ];
 export const buildingAt = (x: number, y: number) =>
