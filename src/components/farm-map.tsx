@@ -180,7 +180,7 @@ function drawCliff(X: number, Y: number, tx: number, ty: number) {
   if (tileAt(tx - 1, ty) === ".") rect(X, Y, 2, 16, "#8dbf5a"); // 横のふちの草
   if (tileAt(tx + 1, ty) === ".") rect(X + 14, Y, 2, 16, "#6fa347");
 }
-// 崖を斜めに下りる石段
+// 崖を下りる石段
 function drawStairs(X: number, Y: number, tx: number, ty: number) {
   rect(X, Y, 16, 16, "#85755c");
   for (let i = 0; i < 4; i++) {
@@ -1018,6 +1018,85 @@ function hallArt(): RoomArt {
   return { base, rows: rowArt };
 }
 
+/* ---------- 開発局の中 ---------- */
+function drawDevFloor(X: number, Y: number, tx: number, ty: number) {
+  rect(X, Y, 16, 16, (tx + ty) % 2 ? "#c9d3d8" : "#d4dde1");
+  rect(X, Y, 16, 1, "#b8c3c9");
+  rect(X, Y, 1, 16, "#b8c3c9");
+}
+function drawDevWall(X: number, Y: number) {
+  rect(X, Y, 16, 16, "#e4e9ec");
+  rect(X, Y, 16, 3, "#455a64");
+  rect(X, Y + 11, 16, 5, "#90a4ae");
+  rect(X, Y + 11, 16, 1, "#b0bec5");
+}
+// 黒板（4マスぶん）。奥の壁に掛かっていて、村人のアイデアがチョークで並んでいる
+function drawBlackboard(X: number, Y: number) {
+  rect(X + 1, Y - 14, 62, 26, "#7a5235");
+  rect(X + 3, Y - 12, 58, 21, "#2f5a46");
+  rect(X + 8, Y - 9, 22, 1, "#e8efe6"); // 見出し
+  rect(X + 8, Y - 8, 22, 1, "#e8efe6");
+  for (let i = 0; i < 3; i++) {
+    rect(X + 8, Y - 4 + i * 4, 2, 2, "#e8efe6");
+    rect(X + 12, Y - 4 + i * 4, 18 + ((i * 7) % 12), 1, "#c9d6cc");
+    rect(X + 35, Y - 4 + i * 4, 2, 2, "#e8efe6");
+    rect(X + 39, Y - 4 + i * 4, 16 - ((i * 5) % 8), 1, "#c9d6cc");
+  }
+  rect(X + 3, Y + 9, 58, 3, "#a0703f"); // チョーク受け
+  rect(X + 46, Y + 8, 4, 1, "#ffffff");
+  rect(X + 52, Y + 8, 3, 1, "#f2d04b");
+}
+// 作業机（横に2マス）。図面と、ノートと、ランプ
+function drawDevDesk(X: number, Y: number) {
+  rect(X + 3, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 27, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 1, Y + 2, 30, 9, "#8a6a48");
+  rect(X + 1, Y + 2, 30, 1, "#a8865e");
+  rect(X + 1, Y + 10, 30, 1, "#6b4a2e");
+  rect(X + 4, Y + 3, 12, 6, "#d8ecf4"); // 図面
+  rect(X + 6, Y + 5, 8, 1, "#3f6fb0");
+  rect(X + 6, Y + 7, 5, 1, "#3f6fb0");
+  rect(X + 19, Y + 4, 5, 5, "#f6efd9"); // ノート
+  rect(X + 26, Y - 2, 1, 5, "#455a64"); // ランプ
+  rect(X + 24, Y - 4, 5, 3, "#f2d04b");
+}
+function devArt(): RoomArt {
+  const room = ROOMS.dev.map;
+  const cols = room[0].length, rows = room.length;
+  const at = (x: number, y: number) => roomTileAt("dev", x, y);
+  const bounds = Skia.XYWHRect(0, -TILE, cols * TILE, (rows + 1) * TILE);
+  const base = createPicture((canvas) => {
+    cv = canvas;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const X = x * TILE, Y = y * TILE;
+        const c = at(x, y);
+        if (c === "#") {
+          if (y === 0 && x > 0 && x < cols - 1) drawDevWall(X, Y);
+          else rect(X, Y, 16, 16, "#37474f");
+        } else {
+          drawDevFloor(X, Y, x, y);
+          if (c === "E") drawDoorMat(X, Y);
+        }
+      }
+    }
+  }, bounds);
+  const rowArt = Array.from({ length: rows }, (_, y) => createPicture((canvas) => {
+    cv = canvas;
+    for (let x = 0; x < cols; x++) {
+      const X = x * TILE, Y = y * TILE;
+      const c = at(x, y);
+      const first = at(x - 1, y) !== c; // 何マスかにまたがる家具は、左のマスを起点に描く
+      if (c === "G" && first) drawBlackboard(X, Y);
+      if (c === "K" && first) drawBookshelf(X, Y);
+      if (c === "D" && first) drawDevDesk(X, Y);
+      if (c === "V") drawAnimal(rect, "owl", X, Y);
+      if (c === "P") drawPottedPlant(X, Y);
+    }
+  }, bounds));
+  return { base, rows: rowArt };
+}
+
 // 部屋は画面より小さいので、村人を置く高さに部屋の真ん中を合わせる
 function roomCamera(id: RoomId, p: Player, t: number, v: ViewSize) {
   const { fx } = playerPos(p, t);
@@ -1157,7 +1236,7 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
   const [size, setSize] = useState({ width: 0, height: 0 });
   const base = useMemo(() => staticLayer(), []);
   const rooms = useMemo<Record<RoomId, RoomArt>>(
-    () => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt(), hall: hallArt() }),
+    () => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt(), hall: hallArt(), dev: devArt() }),
     [],
   );
   const picture = useSharedValue<SkPicture>(base);

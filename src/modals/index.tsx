@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -17,9 +18,10 @@ import {
 import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
 import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
+import { DEV_HIDDEN_KEY, type DevIdea, addIdea, loadBoard, reportIdea } from "@/lib/dev-api";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
-import { C } from "@/theme";
+import { C, F } from "@/theme";
 
 function confirm(message: string, ok: string, destructive = false) {
   return confirmDialog({ message, ok, destructive });
@@ -52,6 +54,8 @@ export function useActions() {
     showBulletin: () => modal.open(<BulletinModal />),
     showClerk: () => modal.open(<ClerkModal />),
     showMayor: () => modal.open(<MayorModal />),
+    showDevStaff: () => modal.open(<DevStaffModal />),
+    showBlackboard: () => modal.open(<BlackboardModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
     showSupport: (kind: SupportKind, onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
   };
@@ -522,6 +526,127 @@ function ClerkModal() {
   );
 }
 
+/* =========================================================
+   開発局：フクロウにアイデアを伝える／黒板を読む
+   ========================================================= */
+function DevStaffModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const [step, setStep] = useState<"ask" | "none" | "write" | "done">("ask");
+  const text = useRef("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const res = checkText(text.current, 0, null);
+    if (res.error) { setErr(res.error); return; }
+    setBusy(true);
+    setErr("");
+    try {
+      await addIdea(uid, text.current.trim(), res.crisis ? "review" : "pending");
+      if (res.crisis) a.showSupport("idea");
+      else setStep("done");
+    } catch (e) {
+      console.error(e);
+      setBusy(false);
+      setErr("伝えられませんでした。通信を確認して、もう一度押してください。");
+    }
+  };
+
+  return (
+    <>
+      <Title>開発局</Title>
+      {step === "ask" ? (
+        <>
+          <Body>フクロウ「こんなところまでよく来てくれた。なんか吃音村を良くするためのアイデアないかな？」</Body>
+          <Actions>
+            <Btn kind="quiet" label="今はまだない" onPress={() => setStep("none")} />
+            <Btn label="ある" onPress={() => setStep("write")} />
+          </Actions>
+        </>
+      ) : step === "none" ? (
+        <>
+          <Body>フクロウ「そうか。思いついたら、またいつでも来てくれ。黒板も見ていってくれよな。」</Body>
+          <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+        </>
+      ) : step === "write" ? (
+        <>
+          <Body>フクロウ「おお、ぜひ聞かせてくれ！」</Body>
+          <PaperInput placeholder="吃音村を良くするためのアイデアを、300文字以内で書いてみよう" maxLines={null} onChangeText={(t) => { text.current = t; }} />
+          <Small>書いたアイデアは、運営が確かめてから、名前を出さずに黒板に並びます。</Small>
+          <ErrorText>{err}</ErrorText>
+          <Actions>
+            <Btn kind="quiet" label="やめる" onPress={a.close} />
+            <Btn label="伝える" onPress={submit} disabled={busy} />
+          </Actions>
+        </>
+      ) : (
+        <>
+          <Body>フクロウ「ありがとう！　運営に確かめてもらってから、黒板に書いておくよ。」</Body>
+          <Actions>
+            <Btn kind="quiet" label="黒板を見る" onPress={a.showBlackboard} />
+            <Btn label="とじる" onPress={a.close} />
+          </Actions>
+        </>
+      )}
+    </>
+  );
+}
+
+function BlackboardModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const toast = useToast();
+  const [ideas, setIdeas] = useState<DevIdea[] | null>(null);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([loadBoard(uid), AsyncStorage.getItem(DEV_HIDDEN_KEY).catch(() => null)])
+      .then(([list, h]) => {
+        if (!alive) return;
+        setHidden(new Set(h ? (JSON.parse(h) as string[]) : []));
+        setIdeas(list);
+      })
+      .catch((e) => { console.error(e); if (alive) { setErr("黒板を読めませんでした。"); setIdeas([]); } });
+    return () => { alive = false; };
+  }, [uid]);
+
+  const report = async (idea: DevIdea) => {
+    if (!(await confirm("このアイデアを通報しますか？　あなたの黒板からは見えなくなり、運営が確認します。", "通報する", true))) return;
+    try { await reportIdea(uid, idea.id); } catch (e) { console.error(e); }
+    const next = new Set(hidden).add(idea.id);
+    setHidden(next);
+    AsyncStorage.setItem(DEV_HIDDEN_KEY, JSON.stringify([...next])).catch(() => {});
+    toast("通報しました。運営が確認します。");
+  };
+
+  const shown = (ideas ?? []).filter((i) => !hidden.has(i.id));
+  return (
+    <>
+      <Title>開発局の黒板</Title>
+      <View style={s.board}>
+        <T style={s.boardHead}>吃音村を良くするアイデア</T>
+        {ideas === null ? <T style={s.chalkSub}>読み込んでいます…</T> : null}
+        {err ? <T style={s.chalkSub}>{err}</T> : null}
+        {ideas !== null && !err && shown.length === 0 ? <T style={s.chalkSub}>まだ、何も書かれていない。</T> : null}
+        {shown.map((i) => (
+          <View key={i.id} style={s.boardItem}>
+            <T style={s.chalk}>{`・${i.text}`}</T>
+            <View style={s.boardMeta}>
+              <T style={s.chalkSub}>{i.uid === uid ? (i.status === "public" ? "あなたのアイデア" : "あなたのアイデア（運営が確認中）") : dateText(i.createdAt)}</T>
+              {i.uid !== uid ? <Pressable accessibilityRole="button" onPress={() => report(i)} hitSlop={8}><T style={s.chalkLink}>通報</T></Pressable> : null}
+            </View>
+          </View>
+        ))}
+      </View>
+      <Small>村人から届いたアイデアのうち、運営が確かめたものを、名前を出さずに並べています。</Small>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
 function MemoryModal({ crop: c }: { crop: CropDoc }) {
   const { uid } = useFarm();
   const a = useActions();
@@ -564,12 +689,13 @@ export function SupportList() {
 }
 
 // seed=種 letter=手紙 cafe=カフェの言葉（保存した） unsaved=カフェの言葉（保存できなかった）
-type SupportKind = "seed" | "letter" | "cafe" | "unsaved";
+type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea";
 const SUPPORT_LEAD: Record<SupportKind, string> = {
   seed: "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。",
   letter: "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。",
   cafe: "とてもつらい気持ちが書かれていたので、この言葉はほかの村人には届けず、運営が確認します。",
   unsaved: "とてもつらい気持ちが書かれていました。この言葉はまだ保存されていません。",
+  idea: "とてもつらい気持ちが書かれていたので、このアイデアは黒板には出さず、運営が確認します。",
 };
 
 function SupportModal({ kind, onBack }: { kind: SupportKind; onBack?: () => void }) {
@@ -625,6 +751,13 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 6,
   },
+  board: { backgroundColor: "#2f5a46", borderColor: "#7a5235", borderWidth: 6, borderRadius: 4, padding: 12, marginBottom: 10 },
+  boardHead: { color: "#f4f7f2", fontSize: 16, marginBottom: 8, textDecorationLine: "underline" },
+  boardItem: { marginBottom: 10 },
+  boardMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
+  chalk: { color: "#f4f7f2", fontFamily: F.letter, fontSize: 15, lineHeight: 22 },
+  chalkSub: { color: "#b9cbbf", fontSize: 12 },
+  chalkLink: { color: "#f2d04b", fontSize: 12, textDecorationLine: "underline" },
   support: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", backgroundColor: C.moss, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 },
   supportText: { fontSize: 15 },
   supportLink: { fontSize: 15, color: C.leaf, textDecorationLine: "underline" },

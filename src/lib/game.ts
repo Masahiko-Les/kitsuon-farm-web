@@ -15,10 +15,10 @@ export const MAP = [
   "SS...HH...TTTTTT...TTTT.DDDDDCDDDDDDDDDDDCDDDDDW",
   "SS........THHH...........DDDDDDDHHHDCDDDDDDDDDDW",
   "SSXXXX^XXXXHHHT....T.....DDDDDDDHHHDDDDDDDDKDDDW",
-  "SSXXXX^^XXXHHH.HHHH.HH...DDDDDDDDDDDDDDDDDDDDDDW",
-  "SSXXXXX^^XXHHH.HHHH.HHM.T.DDDDDDDDDDDDDDDDDDCDDW",
-  "SS......P..HHH.HHHH.P.....DDDDDCDDDDDDDDDDDDDDDW",
-  "SS......PPPPPPPPPPPPPPPPPPDDDDDDDDDDDCDDDDDDDDDW",
+  "SSXXXX^XXXXHHH.HHHH.HH...DDDDDDDDDDDDDDDDDDDDDDW",
+  "SSXXXX^XXXXHHH.HHHH.HHM.T.DDDDDDDDDDDDDDDDDDCDDW",
+  "SS....P....HHH.HHHH.P.....DDDDDCDDDDDDDDDDDDDDDW",
+  "SS....PPPPPPPPPPPPPPPPPPPPDDDDDDDDDDDCDDDDDDDDDW",
   "SSS........T....P..........DDDCDDDDDDDDDKKDDDDDW",
   "SS.HH.TT....T...P....T.T...DDDDDDDDKDDDDDDDDDDDW",
   "SS.HH...HHH.....P.....T.T.FFFFFFFFFFFFDDDDCDDDDW",
@@ -137,8 +137,8 @@ export const BUILDINGS: Building[] = [
   { id: "hall", name: "村役場", x: 15, y: 5, w: 4, h: 3, door: { x: 16, y: 7 }, enterable: true }, // 焚き火の広場の真北
   { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: false },
   { id: "harbor", name: "港の待合所", x: 10, y: 20, w: 2, h: 2, door: { x: 10, y: 21 }, enterable: false },
-  { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の丘の上。斜めの石段で下りる
-  { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: false }, // 砂漠の中
+  { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の丘の上。まっすぐな石段で下りる
+  { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: true }, // 砂漠の中。村人のアイデアを黒板に並べる
   { id: "windmill", name: "風車", x: 11, y: 3, w: 3, h: 5, door: { x: 12, y: 7 }, enterable: false }, // 丘のふもと。村の目じるし
   { id: "lighthouse", name: "灯台", x: 3, y: 10, w: 2, h: 3, door: { x: 3, y: 12 }, enterable: false },
 ];
@@ -146,7 +146,7 @@ export const buildingAt = (x: number, y: number) =>
   BUILDINGS.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
 
 // いま村人がいる場所。農場か、建物の中（建物の id と同じ）
-export type RoomId = "house" | "cafe" | "hall";
+export type RoomId = "house" | "cafe" | "hall" | "dev";
 export type Area = "farm" | RoomId;
 
 // 建物の中。どの部屋も #=壁 .=床 E=出入り口（下へ歩くと外に出る）
@@ -207,6 +207,22 @@ export const ROOMS: Record<RoomId, Room> = {
       "######E#######",
     ],
     entry: { x: 6, y: 9 },
+    walkable: new Set([".", "E"]),
+  },
+  // 開発局。G=黒板（村人のアイデアの一覧） K=本棚 D=作業机 V=開発局の村人（フクロウ） P=鉢植え。
+  // 村人に話しかけると、吃音村を良くするためのアイデアを書ける
+  dev: {
+    map: [
+      "############",
+      "#GGGG..KK..#",
+      "#..........#",
+      "#..DDV.....#",
+      "#..........#",
+      "#P........P#",
+      "#..........#",
+      "#####E######",
+    ],
+    entry: { x: 5, y: 6 },
     walkable: new Set([".", "E"]),
   },
 };

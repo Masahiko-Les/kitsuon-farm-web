@@ -37,17 +37,25 @@ const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
     b: "窓口の向こうだ。",
     P: "よく手入れされた鉢植えだ。",
   },
+  dev: {
+    "#": "壁に、村の地図や設計図が貼ってある。",
+    K: "設計や吃音の本が、ぎっしり並んでいる。",
+    D: "作業机だ。図面とノートが広げてある。",
+    P: "砂漠でも元気な鉢植えだ。",
+  },
 };
 const ROOM_IDLE: Record<RoomId, string> = {
   house: "自分の家だ。ほっとする。",
   cafe: "コーヒーの香りがする。静かで、あたたかい。",
   hall: "村役場だ。窓口では、係員が村人を迎えている。",
+  dev: "開発局だ。吃音村をもっと良くするための場所らしい。",
 };
 // 入れる建物の入り口に立ったときのヒント
 const DOOR_HINTS: Record<RoomId, string> = {
   house: "自分の家だ。",
   cafe: "カフェの入り口だ。コーヒーのいい香りがする。",
   hall: "村役場の入り口だ。",
+  dev: "開発局の入り口だ。砂漠のまんなかに、ぽつんと建っている。",
 };
 // 村人が最初に立つ場所（焚き火の広場の南）
 const START = { x: 16, y: 17 };
@@ -251,6 +259,10 @@ export function FarmScreen() {
           const guest = HALL_GUESTS[keyOf(fx, fy)];
           return { label: "…", hint: guest ? "村人が、ベンチで順番を待っている。" : "待合のベンチだ。", run: null };
         }
+      }
+      if (room === "dev") {
+        if (front === "V") return { label: "話す", hint: "開発局のフクロウが、作業机で何か考えている。", run: a.showDevStaff };
+        if (front === "G") return { label: "読む", hint: "黒板に、村人のアイデアがチョークで書いてある。", run: a.showBlackboard };
       }
       const h = ROOM_HINTS[room][front];
       if (h) return { label: "…", hint: h, run: null };

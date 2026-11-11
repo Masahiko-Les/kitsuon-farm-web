@@ -44,11 +44,12 @@ export default function Settings() {
         <>
           <View style={{ height: 24 }} />
           <Row label="運営：カフェの言葉の確認" onPress={() => router.push("/cafe-admin")} />
+          <Row label="運営：開発局のアイデアの確認" onPress={() => router.push("/dev-admin")} />
         </>
       ) : null}
       <View style={{ height: 24 }} />
       <Row label="すべてのデータを削除" danger onPress={confirmDelete} disabled={busy} />
-      <Small>自分の種・手紙・花・カフェの言葉・村人名を消し、匿名アカウントも削除します。</Small>
+      <Small>自分の種・手紙・花・カフェの言葉・開発局のアイデア・村人名を消し、匿名アカウントも削除します。</Small>
       <View style={{ height: 32 }} />
       <Small>村人ID（運営に問い合わせるときに使います。選択してコピーできます）</Small>
       <T selectable style={s.uid}>{uid}</T>

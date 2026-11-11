@@ -11,6 +11,7 @@ const FALLBACK: Record<string, Href> = {
   settings: "/",
   "cafe-mine": "/cafe",
   "cafe-admin": "/settings",
+  "dev-admin": "/settings",
   help: "/settings",
   terms: "/settings",
   contact: "/settings",
