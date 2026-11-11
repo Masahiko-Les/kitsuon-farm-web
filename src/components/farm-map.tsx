@@ -354,38 +354,54 @@ function drawDev(X: number, Y: number) {
   }
   drawDoor(...doorAt(X, Y, 1, 1), "#78909c", "#455a64");
 }
-// 風車（2×3マス）。羽根は drawWindmillBlades で回す
+// 風車（3×5マス。村の目じるし）。下が太い石の塔に、赤い屋根。羽根は drawWindmillBlades で回す
 function drawWindmill(X: number, Y: number) {
-  rect(X + 3, Y + 30, 26, 18, "#e6dccb");
-  rect(X + 5, Y + 18, 22, 12, "#e6dccb");
-  rect(X + 7, Y + 12, 18, 6, "#e6dccb");
-  for (const r of [24, 36, 42]) rect(X + 5, Y + r, 22, 1, "#cfc4b0");
-  rect(X + 25, Y + 18, 2, 30, "#cfc4b0"); // 影の面
-  rect(X + 6, Y + 6, 20, 7, "#b5523b"); // とんがり屋根
-  rect(X + 9, Y + 3, 14, 3, "#b5523b");
-  rect(X + 13, Y + 1, 6, 2, "#93402d");
-  rect(X + 20, Y + 22, 5, 5, "#7fb6d6");
-  drawDoor(...doorAt(X, Y, 0, 2), "#7a5235", "#5a3e2b");
+  rect(X + 4, Y + 56, 40, 24, "#e6dccb");
+  rect(X + 7, Y + 40, 34, 16, "#e6dccb");
+  rect(X + 10, Y + 26, 28, 14, "#e6dccb");
+  rect(X + 40, Y + 56, 4, 24, "#cfc4b0"); // 影の面
+  rect(X + 37, Y + 40, 4, 16, "#cfc4b0");
+  rect(X + 34, Y + 26, 4, 14, "#cfc4b0");
+  rect(X + 10, Y + 34, 28, 1, "#cfc4b0"); // 石積みの目地
+  rect(X + 7, Y + 48, 34, 1, "#cfc4b0");
+  rect(X + 4, Y + 66, 40, 1, "#cfc4b0");
+  rect(X + 4, Y + 73, 40, 1, "#cfc4b0");
+  rect(X + 5, Y + 54, 38, 2, "#7a5a3a"); // 見晴らし台
+  rect(X + 7, Y + 52, 1, 2, "#7a5a3a");
+  rect(X + 40, Y + 52, 1, 2, "#7a5a3a");
+  rect(X + 8, Y + 18, 32, 8, "#b5523b"); // とんがり屋根
+  rect(X + 12, Y + 12, 24, 6, "#b5523b");
+  rect(X + 17, Y + 8, 14, 4, "#b5523b");
+  rect(X + 22, Y + 4, 4, 4, "#93402d");
+  rect(X + 8, Y + 25, 32, 1, "#93402d");
+  rect(X + 21, Y + 42, 6, 8, "#7fb6d6"); // 窓
+  rect(X + 23, Y + 42, 1, 8, "#e6dccb");
+  rect(X + 9, Y + 60, 6, 5, "#7fb6d6");
+  rect(X + 33, Y + 60, 6, 5, "#7fb6d6");
+  drawDoor(...doorAt(X, Y, 1, 4), "#7a5235", "#5a3e2b");
 }
 function drawWindmillBlades(X: number, Y: number, t: number) {
-  const cx = X + 16, cy = Y + 13;
+  const cx = X + 24, cy = Y + 22, L = 26;
   const diag = Math.floor(t / 700) % 2 === 1; // 十字と斜めを交互に（ゆっくり回って見える）
-  for (let i = 2; i < 14; i++) {
+  for (let i = 3; i < L; i++) {
+    const sail = i > 7;
     if (diag) {
+      const d = Math.round(i * 0.72); // 斜めでも羽根の長さをそろえる
       for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
-        rect(cx + sx * i - 1, cy + sy * i - 1, 2, 2, "#7a5a3a");
-        if (i > 4) rect(cx + sx * i - 1 + sx * 2, cy + sy * i - 1 - sy * 2, 2, 2, "#f6efd9");
+        rect(cx + sx * d - 1, cy + sy * d - 1, 2, 2, "#7a5a3a");
+        if (sail) rect(cx + sx * d - 1 + sx * 2, cy + sy * d - 1 - sy * 2, 3, 3, "#f6efd9");
       }
     } else {
       rect(cx - 1, cy - i - 1, 2, 2, "#7a5a3a"); rect(cx - 1, cy + i - 1, 2, 2, "#7a5a3a");
       rect(cx - i - 1, cy - 1, 2, 2, "#7a5a3a"); rect(cx + i - 1, cy - 1, 2, 2, "#7a5a3a");
-      if (i > 4) {
-        rect(cx + 1, cy - i - 1, 3, 2, "#f6efd9"); rect(cx - 4, cy + i - 1, 3, 2, "#f6efd9");
-        rect(cx - i - 1, cy - 4, 2, 3, "#f6efd9"); rect(cx + i - 1, cy + 1, 2, 3, "#f6efd9");
+      if (sail) {
+        rect(cx + 1, cy - i - 1, 4, 2, "#f6efd9"); rect(cx - 5, cy + i - 1, 4, 2, "#f6efd9");
+        rect(cx - i - 1, cy - 5, 2, 4, "#f6efd9"); rect(cx + i - 1, cy + 1, 2, 4, "#f6efd9");
       }
     }
   }
-  rect(cx - 2, cy - 2, 4, 4, "#5a3e2b");
+  rect(cx - 3, cy - 3, 6, 6, "#5a3e2b");
+  rect(cx - 1, cy - 1, 2, 2, "#a9845a");
 }
 // 灯台（2×3マス）。赤白の塔。灯りは drawLighthouseLight で明滅させる
 function drawLighthouse(X: number, Y: number) {

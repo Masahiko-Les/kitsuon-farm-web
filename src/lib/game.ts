@@ -13,11 +13,11 @@ export const MAP = [
   "SST.....TTTTTTTTTTTTTTTWWWWWWWWWWWWWWWWWWWWWWWWW",
   "SST..HH..TTTTTTTTTTTTTTTTDDDDDDDDDDDDDKKDDDDDDDW",
   "SS...HH...T..TTT...TTTT.DDDDDCDDDDDDDDDDDCDDDDDW",
-  "SS........T.............DDDDDDDDHHHDCDDDDDDDDDDW",
-  "SSXXXX^XXXXHH.......HHHH.DDDDDDDHHHDDDDDDDDKDDDW",
-  "SSXXXX^^XXXHH.....T.HHHH.DDPPPPPPPDDDDDDDDDDDDDW",
-  "SSXXXXX^^XXHH.HH..T.HHHH..DPDDDDDDDDDDDDDDDDCDDW",
-  "SS......P.....HHM....P....DPDDDCDDDDDDDDDDDDDDDW",
+  "SS........THHH...........DDDDDDDHHHDCDDDDDDDDDDW",
+  "SSXXXX^XXXXHHHT....T.....DDDDDDDHHHDDDDDDDDKDDDW",
+  "SSXXXX^^XXXHHH.HHHH.HH...DDPPPPPPPDDDDDDDDDDDDDW",
+  "SSXXXXX^^XXHHH.HHHH.HHM.T.DPDDDDDDDDDDDDDDDDCDDW",
+  "SS......P..HHH.HHHH.P.....DPDDDCDDDDDDDDDDDDDDDW",
   "SS......PPPPPPPPPPPPPPPPPPPPDDDDDDDDDCDDDDDDDDDW",
   "SSS........T....P..........DDDCDDDDDDDDDKKDDDDDW",
   "SS.HH.TT....T...P....T.T...DDDDDDDDKDDDDDDDDDDDW",
@@ -132,14 +132,14 @@ export type Building = {
   id: string; name: string; x: number; y: number; w: number; h: number; door: { x: number; y: number }; enterable: boolean;
 };
 export const BUILDINGS: Building[] = [
-  { id: "house", name: "家", x: 14, y: 6, w: 2, h: 2, door: { x: 14, y: 7 }, enterable: true },
+  { id: "house", name: "家", x: 20, y: 5, w: 2, h: 2, door: { x: 20, y: 6 }, enterable: true },
   { id: "cafe", name: "カフェ", x: 8, y: 11, w: 3, h: 2, door: { x: 9, y: 12 }, enterable: true },
-  { id: "hall", name: "村役場", x: 20, y: 4, w: 4, h: 3, door: { x: 21, y: 6 }, enterable: true },
+  { id: "hall", name: "村役場", x: 15, y: 5, w: 4, h: 3, door: { x: 16, y: 7 }, enterable: true }, // 焚き火の広場の真北
   { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: false },
   { id: "harbor", name: "港の待合所", x: 10, y: 20, w: 2, h: 2, door: { x: 10, y: 21 }, enterable: false },
   { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の丘の上。斜めの石段で下りる
   { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: false }, // 砂漠の中
-  { id: "windmill", name: "風車", x: 11, y: 4, w: 2, h: 3, door: { x: 11, y: 6 }, enterable: false }, // 丘のふもと
+  { id: "windmill", name: "風車", x: 11, y: 3, w: 3, h: 5, door: { x: 12, y: 7 }, enterable: false }, // 丘のふもと。村の目じるし
   { id: "lighthouse", name: "灯台", x: 3, y: 10, w: 2, h: 3, door: { x: 3, y: 12 }, enterable: false },
 ];
 export const buildingAt = (x: number, y: number) =>
