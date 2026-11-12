@@ -125,6 +125,14 @@ export function FarmScreen() {
     return "open";
   }, [farm.uid]);
 
+  // いま水やりできる種：ほかの村人の種（kindOf が open）と、まだ自分に水やりしていない自分の種
+  const waterable = useCallback((seed: Seed): boolean => {
+    const k = kindOf(seed);
+    if (k === "open") return true;
+    if (k !== "mine" || seed.status !== "public") return false;
+    return !farm.letters.some((l) => l.seedId === seed.id && l.fromUid === farm.uid);
+  }, [kindOf, farm.letters, farm.uid]);
+
   const nearOpenSeed = useMemo(() => {
     if (mayorSeeds.some((m) => !m.bloom && Math.abs(m.x - pos.x) + Math.abs(m.y - pos.y) <= 2)) return true;
     for (const s of farm.publicSeeds.values()) {
@@ -151,13 +159,14 @@ export function FarmScreen() {
     others,
     seeds: [],
     kindOf: () => null,
+    waterable: () => false,
     hasUnread: false,
   });
   const hasUnread = farm.unreadCount > 0;
 
   useEffect(() => {
-    Object.assign(sceneRef.current, { seeds: visibleSeeds, kindOf, hasUnread });
-  }, [visibleSeeds, kindOf, hasUnread]);
+    Object.assign(sceneRef.current, { seeds: visibleSeeds, kindOf, waterable, hasUnread });
+  }, [visibleSeeds, kindOf, waterable, hasUnread]);
 
   // はじめて村に来たとき（名前の登録と同意のすぐあと）は、村長が村のことを話す
   const { justJoined, clearJustJoined } = farm;

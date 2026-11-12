@@ -45,6 +45,7 @@ export type Scene = {
   others: Map<string, Other>; // 同じ場所にいる、ほかの村人（src/state/village.ts）
   seeds: Seed[];
   kindOf: (s: Seed) => SeedKind;
+  waterable: (s: Seed) => boolean; // いま水やりできる種（ほかの村人の種と、まだ自分に水やりしていない自分の種）
   hasUnread: boolean;
 };
 
@@ -528,6 +529,14 @@ function drawSparkle(X: number, Y: number, t: number, tx: number) {
   } else {
     rect(X + 7, Y + 6, 2, 2, "#fff6c2");
   }
+}
+// 芽や花のまわりにまたたく光（水やりできるしるし）。土は描かない
+function drawTwinkle(X: number, Y: number, t: number, tx: number) {
+  const k = (Math.floor(t / 380) + tx) % 2;
+  const [ax, ay, bx, by] = k === 0 ? [2, 2, 12, 7] : [12, 1, 3, 8];
+  rect(X + ax + 1, Y + ay - 1, 1, 3, "#fff6c2");
+  rect(X + ax, Y + ay, 3, 1, "#fff6c2");
+  rect(X + bx, Y + by, 2, 2, "#fff6c2");
 }
 // 満員（MAX_WATERERS 人が水やり）になった種。村人の優しさで咲いた花
 function drawFlower(X: number, Y: number) {
@@ -1390,15 +1399,26 @@ function frame(base: SkPicture, scene: Scene, t: number, v: ViewSize): SkPicture
     for (const s of scene.seeds) {
       if (!inView(s.x, s.y)) continue;
       const X = s.x * TILE, Y = s.y * TILE;
-      // 「ありがとう」で花が咲いた種は、誰の画面にもその花を咲かせる
-      if (s.bloom) { drawBloom(canvas, X, Y, cropById(s.bloom).id); continue; }
       const kind = scene.kindOf(s);
-      // 自分の種：水やりされるまでは種、水やりされると芽、満員で花
-      if (kind === "mine") drawStage(X, Y, stageOf(s.waterCount || 0));
+      const near = Math.abs(s.x - px) + Math.abs(s.y - py) <= 2;
+      // 水やりできる植物は、芽でも花でも、近づくとキラキラ光る
+      const twinkle = near && scene.waterable(s);
+      // 「ありがとう」で花が咲いた種は、誰の画面にもその花を咲かせる
+      if (s.bloom) { drawBloom(canvas, X, Y, cropById(s.bloom).id); if (twinkle) drawTwinkle(X, Y, t, s.x); continue; }
+      const grown = (s.waterCount || 0) > 0;
+      // 自分の種：水やりされるまでは土に埋まっていて、近づくとキラキラ光る。水やりされると芽、満員で花
+      if (kind === "mine") {
+        if (grown) { drawStage(X, Y, stageOf(s.waterCount || 0)); if (twinkle) drawTwinkle(X, Y, t, s.x); }
+        else if (near) drawSparkle(X, Y, t, s.x);
+      }
       else if (kind === "mine-review") drawMound(X, Y, "#7d7666");
       else if (kind === "watered") drawStage(X, Y, stageOf(s.waterCount || 0), true);
       else if (kind === "full") drawFlower(X, Y);
-      else if (kind === "open" && Math.abs(s.x - px) + Math.abs(s.y - py) <= 2) drawSparkle(X, Y, t, s.x);
+      // ほかの村人の種：ふだんは見えない。近づくと、種なら土の上が、芽なら芽ごとキラキラ光る
+      else if (kind === "open" && near) {
+        if (grown) { drawStage(X, Y, stageOf(s.waterCount || 0)); drawTwinkle(X, Y, t, s.x); }
+        else drawSparkle(X, Y, t, s.x);
+      }
     }
     drawEffects(t);
     // 村長と村人は、手前（下）にいるほうをあとに描く。ほかの村人は、自分より先に描く（同じ行なら自分が手前）
