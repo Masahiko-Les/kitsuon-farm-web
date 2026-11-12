@@ -29,11 +29,11 @@
         outline: none;
       }
       /* 起動画面：アプリが動き出す前（描画エンジンとプログラムの読み込み中）に出す。
-         「吃音村」と点だけを DotGothic16 から抜き出したフォント（約1KB）を埋め込んでいる。
+         「吃音村β版」と点だけを DotGothic16 から抜き出したフォント（約1KB）を埋め込んでいる。
          アプリが動き出したあとも src/components/splash.tsx が同じ見た目で引き継ぐ */
       @font-face {
         font-family: "KitsuonSplash";
-        src: url(data:font/woff2;base64,d09GMgABAAAAAAPAABAAAAAAB9wAAANqAAEZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGYFWGyAcRgZgAFQRCAqDaIMtATYCJAMYCxIABCAFg2AHIBckGB4beAZRVFD+Qvw8jI2ZRw+xJdrF2o83wlRFJRo05vV4eNuvr3NfVVN19wBQ/GgkRUTxP6PGsVAEFniF2awijP963tZaZp/HA2IBWe8R5Q9IqTpbJ5rziPp+3357pHnJ4oOkvcSVUqjUB42dhIdMxhOH5ElS1K/696dqvmVrgN5FPGAJaETW6FwW6sBtawHHvN1WmsDFYLmiBWmRqm5qVfSQYZmmKXXg8Sx0Am2HMWKay1Y8fkL3QGhpsHvE4lXYPUoNGbonqEGhe5I6BuxKgEo2RVPXUAIkWc8waXmkfirSWqQeEPXfsjFixw4ITFp0fjPhbyzUjZCE2dhnnD12IigmqSJhjqVkqGuAIj3FGMXxuHzeWUohEPIStZubGkL1OpzTt7itQXWr2gqslbWx2zKWgarqUC7avpUVWx4+4FT9jnS27pEHYhoQUE1KI4FpEqiQMEpUYJSYRUBPWyWbZroxemTdr7oGeK3+o/7xSdx9c3QYQkIYoq4V0AbDgCF4hLeADCA0ZAmRR7XbOY9o5hnThrXzlq6yox8lSvSjq68o+oadId3o6do4tCrRU46Iu29WTnSj6UTVdEo53M9F2ZJKta8bme9FX4n0XZK9KAbBK+KB9UUjSlUSOXWq4WtY3SxOGIy9G3CjFjHp6BOY8muBwCtdtdpW9YpBeTWLS8CJOgL7enGnMYR+XERDGizPDR3XxkmAYFjdAc31U96t8u5UXLFZ7UdnRxErID0WTDW16YwMA1Xci6vVx+psuu+a8l8Jv5rWev29+ttqSxCiq5heVi+IhTCnZ9PzOm92EqV6MBV0NirLd40YmTn5rwECMb7/t5Mb5fC8z3bXe4Wf98MHP/+z5N+lLl3TWTRVIMgD338n/U99+l9QN8PVmzHIbLIw/W9qew8PEAXaXhmlLHKLzkDLdlGRO/jAFsIYf1AZ4idI5vmHbE5Mg4YJseKypjmx1wW0EbLIRBJH3dK8lOo+QcQ3X0KOm+dSiYy1sK3ulQUpeCxH3RmXdBmy2Or6JA7Hhm3fzIxITo+7GFMspJsRIIPDhywq2wQOYpsdIcjMwPiJvOOJXBrKsjC1MDd34NqPBx8OnFdM+iREoXrlG//RfTJkqAs6i0CZKJWtH5qrP4Yhg9976f/rJSZQyzHxdBavfmBNScYgnHYC) format("woff2");
+        src: url(data:font/woff2;base64,d09GMgABAAAAAAQ8ABAAAAAACNgAAAPlAAEZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGYFWGyAcIAZgAGQRCAqGCIUtATYCJAMYCxIABCAFg2AHIBckGBIbVgdRFHEF+OKAJ4PmOWScNKEZE82c6pz4yVSI6gKv4uFrTer97k52diZZhCwSHVN5dqzZKGZhrk4RWuI5XNs9KqHhzZNr87q9+W1YaTQoVuxEbCWHp5r+8uMcTW2K2hcct1GK0pJ8xd0ggzK1qF9VMRbHoJq74WpsVdQaWbQRMqERMqWILqLpEE2iHiJDS/AiVhLt60cr7UP7WF51ik2eqip0XnAcoNKOZ+9OoHIDKqS7e+/xDLVrP2hB90aUTejeRBwdarcSh0DtNsId6OqCpBiYaa6FuiArekYYY4JoE/kQoSXaFeOUm69V6DHP/2fCv0HXdtakmoN5j4LXZXFpbYqBWOenxRRoW0BzdskfxleH9HC6A4f80LhCJ3aDlIYC7gMV/F3sPXc4wVTh8V+y16I8GAUEpCl5NKbrIiFjjCwwRnEcGGGEjOmW5mdPB288gdvfL23Lfm77Vfvxvyek/wuPvXVTXgAUotZaO77aiREYRcwltgAKgJB0FFkugzFjqqqUUd0yc/qIatzyKniuUZ9rchPI62vU9ibm9KJGl/TTUDu2sfaa91Kf1JhX3+J9I04UBY3Tw1M9kKlvjJ6r/bc2gTqlbgp0Q79EqXO5Tldn9ZNTo29E7a3bg+2cQvdQNbooFXWqs9p9e6dYn4Zi/sg1oamFTuzPTaozVphvzGj2EdRPb6qbT4d49Gh0LDZ5b0RFbL3tQS4Z72tBJE8rZcXFE2B5DSqaqVukrKMvSnQx1ox3N/KdDD4KIYyt9eZbGwckd/ebO9CsN8rirJwbV9j3tlzJ5ai5apLTU0AD3nrk1X5AXT7I68ahHi+uves1r0C9J0jnpr26FVpdv3FsK5iiyeCr6m+WiU2iRW9eUL1wQf7sXYJq/flczC3P123Bst6lH2lkDcngoLp1sVGAhk+czG3YjHVad+mW/X/3+tKmWzwZqlDbgankBCrFak0GMo9MJEeez3mQwAvgBV4TiIlP/bSldWV2829VMv8In16ztY7zv5v/Q/tgpj17QFdSma88+P+X9Ajt322FAFD4xN3xKx/YNg6+alr7uEDlWWNMkWrvFwJDXBQUZSjexkVhnLdFyTCfiLLNvhUVc2O6qGNS7H1d19y4yoLL84F0Kg1XsNLybzTdaRYrl+7m4jYdNDVP1LYWHYc8GDqrWO3f4aFqdSGmYP6sp3Eepm+ZZW6kW+ED1XCtJWxNN8Q8B/eqRSamzq/DNPewzjILsr+Rk2SqBwuB2pZaYbnlNtnr5uBkUL1kyTmOUtF0/5X81lZ933OFVaexkjcIVLbPWKk3Rohf/+8Ff/x9KRPYaJfvSh/ZanADAA==) format("woff2");
         font-display: block;
       }
       .splash {
@@ -78,7 +78,7 @@
     <noscript>吃音村を遊ぶには JavaScript を有効にしてください。</noscript>
     <div id="root">
       <div class="splash" role="status" aria-label="吃音村を読み込んでいます">
-        <div class="splash-title">吃音村</div>
+        <div class="splash-title">吃音村β版</div>
         <div class="splash-dots" aria-hidden="true"></div>
       </div>
     </div>

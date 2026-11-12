@@ -15,7 +15,7 @@ export function Splash() {
   }, []);
   return (
     <View style={s.root} accessibilityRole="progressbar" accessibilityLabel="吃音村を読み込んでいます">
-      <Text style={s.title}>吃音村</Text>
+      <Text style={s.title}>吃音村β版</Text>
       <Text style={s.dots} aria-hidden>{FRAMES[i]}</Text>
     </View>
   );
