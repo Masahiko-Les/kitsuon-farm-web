@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -535,15 +536,20 @@ function MayorModal() {
   );
 }
 
-// 係員の窓口。住民登録はまだ準備中
+// 係員の窓口。住民票を書く・読む（画面は src/screens/resident.tsx）
 function ClerkModal() {
   const a = useActions();
+  const go = (path: "/resident" | "/residents") => { a.close(); router.push(path); };
   return (
     <>
       <Title>村役場の窓口</Title>
-      <Body>係員「こんにちは。ここでは、吃音村の住民登録ができます。」</Body>
-      <Body>係員「ただ、住民登録の受付は、いま準備をしているところなんです。始まったら、ぜひまた来てくださいね。」</Body>
-      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+      <Body>係員「こんにちは。ここは住民票の窓口です。」</Body>
+      <Body>係員「住民票には、自己紹介や、あなたの吃音のことを書いておけます。ほかの村人に見せるかどうかは、あなたが選べますよ。」</Body>
+      <View style={s.clerk}>
+        <Btn label="わたしの住民票" onPress={() => go("/resident")} />
+        <Btn kind="water" label="村人の住民票を見る" onPress={() => go("/residents")} />
+        <Btn kind="quiet" label="とじる" onPress={a.close} />
+      </View>
     </>
   );
 }
@@ -714,13 +720,15 @@ export function SupportList() {
 }
 
 // seed=種 letter=手紙 cafe=カフェの言葉（保存した） unsaved=カフェの言葉（保存できなかった）
-type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea";
+type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea" | "resident" | "residentPrivate";
 const SUPPORT_LEAD: Record<SupportKind, string> = {
   seed: "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。",
   letter: "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。",
   cafe: "とてもつらい気持ちが書かれていたので、この言葉はほかの村人には届けず、運営が確認します。",
   unsaved: "とてもつらい気持ちが書かれていました。この言葉はまだ保存されていません。",
   idea: "とてもつらい気持ちが書かれていたので、このアイデアは黒板には出さず、運営が確認します。",
+  resident: "とてもつらい気持ちが書かれていたので、この住民票はいったんほかの村人には見せず、運営が確認します。",
+  residentPrivate: "とてもつらい気持ちが書かれていました。この住民票は、あなただけが読めます。",
 };
 
 // 種を蒔くページから開く相談窓口
@@ -793,6 +801,7 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 6,
   },
+  clerk: { gap: 10, marginTop: 6 },
   consult: { flex: 1, minWidth: 0, alignSelf: "center" }, // 狭いときは折り返して、ボタンを1列に収める
   board: { backgroundColor: "#2f5a46", borderColor: "#7a5235", borderWidth: 6, borderRadius: 4, padding: 12, marginBottom: 10 },
   boardHead: { color: "#f4f7f2", fontSize: 16, marginBottom: 8, textDecorationLine: "underline" },

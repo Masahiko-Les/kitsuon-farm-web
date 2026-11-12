@@ -8,6 +8,7 @@ import {
 } from "@/lib/farm-api";
 import { CAFE_HIDDEN_KEY } from "@/lib/cafe-api";
 import { DEV_HIDDEN_KEY } from "@/lib/dev-api";
+import { RESIDENT_HIDDEN_KEY } from "@/lib/resident-api";
 import { isConfigured, supabase } from "@/lib/supabase";
 import { TERMS_VERSION, cropById } from "@/lib/game";
 
@@ -157,7 +158,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setPhase("ready");
       throw e;
     }
-    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY]).catch(() => {});
+    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY]).catch(() => {});
     setHiddenSeeds(new Set());
     setSeenThanks(new Set());
   }, [uid]);

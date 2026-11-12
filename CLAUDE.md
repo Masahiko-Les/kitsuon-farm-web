@@ -45,7 +45,15 @@
 ### 村役場（Web版だけ）
 - 農場の村役場（BUILDINGS の hall）に入れる。間取りは `ROOMS.hall`、描画は `farm-map.tsx` の `hallArt()`。
 - 奥の壁に掲示板（N）。向かってAを押すと、吃音についての情報（`src/lib/bulletin.ts`）を読める。医療・制度にかかわる内容なので、公開前と定期的に見直す。
-- カウンターの係員（タヌキ）に話しかけると、住民登録の窓口（`ClerkModal`）。住民登録はまだ準備中で、案内だけを出す。
+- カウンターの係員（タヌキ）に話しかけると、住民票の窓口（`ClerkModal`）。「わたしの住民票」（`/resident`、書く・直すは `/resident-edit`）と「村人の住民票を見る」（`/residents`、1枚は `/resident-view?uid=`）。
+
+### 住民票（Web版だけ）
+- 入力項目は https://github.com/Masahiko-Les/KitsuonmuraWeb_ver2 の住民票にならう（自己紹介・好きなこと・吃音のタイプ・言いにくい音・言いにくい言葉・出やすい場面・出にくい場面・対処法・吃音史）。どれも任意。文章の欄は300字まで。
+- 名前は村人名（トリガーが profiles から写す）。住民票では変えられない。
+- 本人が「ほかの村人に見せる」を選んだものだけ、ほかの村人が読める。運営が読めるのも公開を選んだものだけ。
+- 保存前に NGワード・連絡先のフィルタ。危機的な言葉は、公開を選んでいれば review（誰にも見せず運営が確認）、どちらでも相談窓口を出す。
+- ほかの村人の住民票には通報（自分の画面から消える）。ブロックした人の住民票は一覧に出さない。運営が hidden にすると、本人が直しても非公開のまま。
+- データは Supabase の `resident_cards`（`supabase/migrations/0008`）と `reports`（target_type: residentCard）。確認は設定の「運営：住民票の確認」（`/resident-admin`）。
 
 ### 開発局（Web版だけ）
 - 砂漠の開発局（BUILDINGS の dev）に入れる。間取りは `ROOMS.dev`、描画は `farm-map.tsx` の `devArt()`。

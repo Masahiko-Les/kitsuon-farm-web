@@ -56,6 +56,11 @@ export default function RootLayout() {
                 <Stack.Screen name="cafe-mine" options={{ title: "わたしの言葉" }} />
                 <Stack.Screen name="cafe-admin" options={{ title: "運営：カフェの確認" }} />
                 <Stack.Screen name="dev-admin" options={{ title: "運営：開発局の確認" }} />
+                <Stack.Screen name="resident" options={{ title: "わたしの住民票" }} />
+                <Stack.Screen name="resident-edit" options={{ title: "住民票を書く" }} />
+                <Stack.Screen name="residents" options={{ title: "村人の住民票" }} />
+                <Stack.Screen name="resident-view" options={{ title: "住民票" }} />
+                <Stack.Screen name="resident-admin" options={{ title: "運営：住民票の確認" }} />
               </Stack>
               </View>
             </ModalHost>
