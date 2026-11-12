@@ -128,11 +128,16 @@ function SowModal({ x, y, initial = "" }: { x: number; y: number; initial?: stri
 }
 
 function OwnSeedModal({ seed }: { seed: Seed }) {
+  const { uid, letters } = useFarm();
   const a = useActions();
   const [text, setText] = useState("読み込み中…");
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    readSeedText(seed.id).then(setText).catch(() => setText("読み込めませんでした。"));
+    readSeedText(seed.id).then((t) => { setText(t); setLoaded(true); }).catch(() => setText("読み込めませんでした。"));
   }, [seed.id]);
+  // 自分の種にも、1回だけ水やりできる（水やりの人数の枠には数えない）
+  const selfWatered = letters.some((l) => l.seedId === seed.id && l.fromUid === uid);
+  const canWater = seed.status === "public" && !selfWatered && loaded;
   // 水やりの人数は見せない。確認中のときだけ、そのことを伝える
   const status = seed.status === "review" ? "この種は確認中のため、ほかの村人には見えていません。" : "";
   return (
@@ -140,7 +145,11 @@ function OwnSeedModal({ seed }: { seed: Seed }) {
       <Title>{`あなたが蒔いた${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       {status ? <Small>{status}</Small> : null}
-      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+      {selfWatered ? <Small>自分への水やりの手紙は、郵便受けに届いています。</Small> : null}
+      <Actions>
+        {canWater ? <Btn kind="quiet" label="とじる" onPress={a.close} /> : <Btn label="とじる" onPress={a.close} />}
+        {canWater ? <Btn kind="water" label="自分に水やりする" onPress={() => a.showWaterLetter(seed, text)} /> : null}
+      </Actions>
     </>
   );
 }
@@ -216,6 +225,7 @@ function Details({ summary, children }: { summary: string; children: ReactNode }
 
 function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedText: string; initial?: string }) {
   const { uid, name, refresh } = useFarm();
+  const self = seed.ownerUid === uid; // 自分の種への水やり
   const a = useActions();
   const modal = useModal();
   const toast = useToast();
@@ -238,7 +248,7 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
       refresh();
       a.close();
       addEffect("water", seed.x, seed.y);
-      toast(`水やりしました。手紙は${seed.ownerName}さんに届きました。`);
+      toast(self ? "自分の種に水やりしました。手紙は郵便受けに届きました。" : `水やりしました。手紙は${seed.ownerName}さんに届きました。`);
     } catch (e) {
       setBusy(false);
       const messages: Record<string, string> = {
@@ -253,13 +263,15 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
 
   return (
     <>
-      <Title>優しい言葉で水やりしましょう</Title>
-      <Details summary={`${seed.ownerName}さんの${seedNameOf(seed.id)}をもう一度読む`}><Paper text={seedText} /></Details>
-      <Tips items={["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて"]} />
-      <PaperInput placeholder={`${seed.ownerName}さんへ`} initial={initial} onChangeText={(t) => { text.current = t; }} />
+      <Title>{self ? "自分に、優しい言葉で水やりしましょう" : "優しい言葉で水やりしましょう"}</Title>
+      <Details summary={self ? `自分の${seedNameOf(seed.id)}をもう一度読む` : `${seed.ownerName}さんの${seedNameOf(seed.id)}をもう一度読む`}><Paper text={seedText} /></Details>
+      <Tips items={self
+        ? ["友だちに声をかけるように、自分にも優しい言葉を", "書いたときの自分を、ねぎらうひとことを"]
+        : ["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて"]} />
+      <PaperInput placeholder={self ? "自分へ" : `${seed.ownerName}さんへ`} initial={initial} onChangeText={(t) => { text.current = t; }} />
       <ErrorText>{err}</ErrorText>
       <Actions>
-        <Btn kind="quiet" label="もどる" onPress={() => modal.open(<SeedModal seed={seed} text={seedText} />)} />
+        <Btn kind="quiet" label="もどる" onPress={() => modal.open(self ? <OwnSeedModal seed={seed} /> : <SeedModal seed={seed} text={seedText} />)} />
         <Btn kind="water" label="水やりする" onPress={submit} disabled={busy} />
       </Actions>
     </>
@@ -273,7 +285,7 @@ export const THANKS_TEXT = "花が咲きました。ありがとう。";
 
 // 届いた手紙と、水やりした種の人からの「ありがとう」を、新しい順に並べる
 function MailboxModal() {
-  const { letters, crops, thanks, seenThanks } = useFarm();
+  const { uid, letters, crops, thanks, seenThanks } = useFarm();
   const a = useActions();
   const items = [
     ...letters.map((l) => ({ kind: "letter" as const, at: millis(l.createdAt), letter: l })),
@@ -311,7 +323,7 @@ function MailboxModal() {
                 {crop ? <FlowerIcon id={crop.id} size={32} /> : <T style={s.listIcon}>{icon}</T>}
                 <View style={s.listMain}>
                   <T style={s.listName}>
-                    {`${l.fromName}さんから`}
+                    {l.fromUid === uid ? "自分から" : `${l.fromName}さんから`}
                     {l.status === "unread" ? <T style={s.unread}>　未読</T> : null}
                   </T>
                   <T style={s.listSub} numberOfLines={1}>{`${dateText(l.createdAt)}　${l.text.replace(/\n/g, " ")}`}</T>
@@ -362,6 +374,7 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const letter = letters.find((l) => l.id === initialLetter.id) ?? initialLetter;
+  const self = letter.fromUid === uid; // 自分の種への水やりの手紙
 
   useEffect(() => {
     if (initialLetter.status === "unread") markRead(initialLetter).then(refresh).catch((e) => console.error(e));
@@ -415,22 +428,24 @@ function LetterModal({ letter: initialLetter }: { letter: Letter }) {
   return (
     <>
       <Animated.View entering={ZoomIn.duration(500)}><T style={s.envelope}>💌</T></Animated.View>
-      <Title>{`${letter.fromName}さんからの手紙`}</Title>
+      <Title>{self ? "自分への手紙" : `${letter.fromName}さんからの手紙`}</Title>
       <Details summary={`あなたが蒔いた${seedNameOf(letter.seedId)}`}><Paper text={letter.seedText || ""} /></Details>
       <Animated.View entering={FadeInDown.duration(600)}>
-        <Paper text={letter.text} from={`${letter.fromName}より`} />
+        <Paper text={letter.text} from={self ? "自分より" : `${letter.fromName}より`} />
       </Animated.View>
       {thanked
-        ? <Body style={{ marginTop: 14 }}>{`ありがとうを伝えました。${crop ? crop.name : "花"}が咲き、${letter.fromName}さんにも届きました。`}</Body>
-        : <Small>「ありがとう」を押すと花が咲き、手紙をくれた人にも同じ花が届きます。</Small>}
+        ? <Body style={{ marginTop: 14 }}>{self ? `ありがとうを伝えました。${crop ? crop.name : "花"}が咲きました。` : `ありがとうを伝えました。${crop ? crop.name : "花"}が咲き、${letter.fromName}さんにも届きました。`}</Body>
+        : <Small>{self ? "「ありがとう」を押すと花が咲きます。" : "「ありがとう」を押すと花が咲き、手紙をくれた人にも同じ花が届きます。"}</Small>}
       <Actions>
         <Btn kind="quiet" label="郵便受けにもどる" onPress={a.showMailbox} />
         {thanked ? null : <Btn label="ありがとう" onPress={thanks} disabled={busy} />}
       </Actions>
-      <Links>
-        <LinkBtn label="この手紙を通報する" onPress={report} />
-        <LinkBtn label="この人をブロックする" onPress={block} />
-      </Links>
+      {self ? null : (
+        <Links>
+          <LinkBtn label="この手紙を通報する" onPress={report} />
+          <LinkBtn label="この人をブロックする" onPress={block} />
+        </Links>
+      )}
     </>
   );
 }
@@ -441,7 +456,7 @@ function HarvestModal({ letter, crop }: { letter: Letter; crop: Crop }) {
     <View style={{ alignItems: "center" }}>
       <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={crop.id} size={96} style={s.cropBig} /></Animated.View>
       <Title>{`${crop.name}が咲きました`}</Title>
-      <Body style={{ textAlign: "center" }}>{`${letter.fromName}さんにも、同じ${crop.name}が届きました。`}</Body>
+      <Body style={{ textAlign: "center" }}>{letter.fromUid === letter.toUid ? "自分への優しい言葉で、花が咲きました。" : `${letter.fromName}さんにも、同じ${crop.name}が届きました。`}</Body>
       <Actions center>
         <Btn kind="quiet" label="とじる" onPress={a.close} />
         <Btn label="思い出帳を見る" onPress={a.showBook} />
@@ -658,7 +673,10 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
   const { uid } = useFarm();
   const a = useActions();
   const info = cropById(c.cropType);
-  const lead = c.sowerUid === uid
+  const self = c.sowerUid === c.watererUid; // 自分の種への水やり
+  const lead = self
+    ? "あなたの種に、自分で水やりしました。"
+    : c.sowerUid === uid
     ? `あなたの種に、${c.watererName}さんが水やりしてくれました。`
     : `あなたが${c.sowerName}さんの${seedNameOf(c.seedId)}に水やりしました。`;
   return (
@@ -670,7 +688,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
       <Body>{lead}</Body>
       <SectionLabel>{`${c.sowerName}さんの${seedNameOf(c.seedId)}`}</SectionLabel>
       <Paper text={c.seedText} />
-      <SectionLabel>{`${c.watererName}さんの手紙`}</SectionLabel>
+      <SectionLabel>{self ? "自分への手紙" : `${c.watererName}さんの手紙`}</SectionLabel>
       <Paper text={c.letterText} />
       <Actions><Btn kind="quiet" label="思い出帳にもどる" onPress={a.showBook} /></Actions>
     </>

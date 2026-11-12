@@ -194,15 +194,17 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         reload("mySeeds");
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "letters", filter: `to_uid=eq.${uid}` }, (p) => {
-        if (p.eventType === "INSERT" && !blockedRef.current.has((p.new as { from_uid: string }).from_uid)) {
+        const from = (p.new as { from_uid?: string }).from_uid ?? "";
+        // 自分の種への水やり（自分から自分への手紙）は、水やりのときに知らせているので出さない
+        if (p.eventType === "INSERT" && from !== uid && !blockedRef.current.has(from)) {
           toast("郵便受けに手紙が届きました。");
         }
         reload("letters");
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `sower_uid=eq.${uid}` }, () => reload("crops"))
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `waterer_uid=eq.${uid}` }, (p) => {
-        if (p.eventType === "INSERT") {
-          const c = p.new as { sower_name: string; crop_type: string };
+        const c = p.new as { sower_name: string; sower_uid: string; crop_type: string };
+        if (p.eventType === "INSERT" && c.sower_uid !== uid) {
           toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が咲きました。`);
         }
         reload("crops");
@@ -228,7 +230,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     .filter((l) => l.status !== "reported" && !blocked.has(l.fromUid))
     .sort((a, b) => millis(b.createdAt) - millis(a.createdAt)), [rawLetters, blocked]);
   const thanks = useMemo(() => crops
-    .filter((c) => c.watererUid === uid && !blocked.has(c.sowerUid))
+    .filter((c) => c.watererUid === uid && c.sowerUid !== uid && !blocked.has(c.sowerUid)) // 自分への水やりの花は除く
     .sort((a, b) => millis(b.harvestedAt) - millis(a.harvestedAt)), [crops, uid, blocked]);
   const unreadCount = letters.filter((l) => l.status === "unread").length
     + thanks.filter((c) => !seenThanks.has(c.id)).length;

@@ -161,7 +161,7 @@ export async function readMyLetter(seedId: string, uid: string): Promise<Letter 
   return r ? toLetter(r) : null;
 }
 
-/* ---------- 水やり（RPC。種をロックして、1人1回・最大5人を確かめる） ---------- */
+/* ---------- 水やり（RPC。種をロックして、1人1回・最大 MAX_WATERERS 人を確かめる） ---------- */
 // 'gone' / 'already' / 'full' / 'blocked' の Error になることがある
 export async function waterSeed(_uid: string, _name: string, seed: Seed, _seedText: string, text: string) {
   must(await supabase.rpc("water_seed", { p_seed_id: seed.id, p_text: text }));

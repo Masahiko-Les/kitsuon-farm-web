@@ -309,7 +309,7 @@ export function FarmScreen() {
       return { label: "見る", hint: `${bloom}あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
     }
     if (seed && kind === "open") {
-      const hint = bloom ? `${bloom}まだ水やりの手紙を送れる。` : desert ? "砂の中に種が埋まっている！" : "土の中に種が埋まっている！";
+      const hint = bloom ? bloom : desert ? "砂の中に種が埋まっている！" : "土の中に種が埋まっている！";
       return { label: "水やり", hint, run: () => { a.showSeed(seed); } };
     }
     if (seed && kind === "watered") {

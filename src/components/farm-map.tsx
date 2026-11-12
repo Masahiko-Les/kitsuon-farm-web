@@ -7,7 +7,7 @@ import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, type Dir, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
+  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, type Dir, MAX_WATERERS, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
   VIEW_TILES_ACROSS, cropById, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
@@ -503,7 +503,7 @@ function drawSparkle(X: number, Y: number, t: number, tx: number) {
     rect(X + 7, Y + 6, 2, 2, "#fff6c2");
   }
 }
-// 満員（5人が水やり）になった種。村人の優しさで咲いた花
+// 満員（MAX_WATERERS 人が水やり）になった種。村人の優しさで咲いた花
 function drawFlower(X: number, Y: number) {
   drawMound(X, Y);
   rect(X + 7, Y + 5, 2, 6, "#4f8f3a");
@@ -518,9 +518,9 @@ function drawFlower(X: number, Y: number) {
   rect(X + 7, Y + 2, 2, 2, "#f6d24a");
 }
 
-// 種の育ち具合は3段階だけ見せる（水やりの人数がわからないように）。0回=種、1〜4回=芽、満員=花
+// 種の育ち具合は3段階だけ見せる（水やりの人数がわからないように）。0回=種、1回〜満員の手前=芽、満員=花
 type Stage = "seed" | "sprout" | "flower";
-const stageOf = (waterCount: number): Stage => (waterCount >= 5 ? "flower" : waterCount > 0 ? "sprout" : "seed");
+const stageOf = (waterCount: number): Stage => (waterCount >= MAX_WATERERS ? "flower" : waterCount > 0 ? "sprout" : "seed");
 // 「ありがとう」で咲いた花（flowers.ts のドット絵）。足元に小さな影
 function drawBloom(canvas: SkCanvas, X: number, Y: number, id: string) {
   rect(X + 4, Y + 15, 8, 1, "rgba(40,60,30,0.25)");

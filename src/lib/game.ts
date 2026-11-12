@@ -1,5 +1,5 @@
 export const MAP_ID = "farm01";
-export const MAX_WATERERS = 5;
+export const MAX_WATERERS = 100; // 1つの種に水やりできる人数（1人1回）。0007 の water_seed と同じ
 export const MAX_LINES = 10;
 export const MAX_CHARS = 300;
 export const NAME_MAX = 12;
