@@ -14,7 +14,7 @@
 - ヘッダーのボタン（マップ・郵便受け・思い出帳・歯車＝設定）は詰めて並べ、村人名は2行まで折り返す。歯車は `farm-screen.tsx` の `GEAR`（10×10ドット）。
 - ヘッダーの「マップ」（郵便受けの左）で、村全体のマップ（`farm-map.tsx` の `VillageMap`。地形の絵を縮小し、建物の名前・咲いた花・自分の場所の赤い丸を重ねる）。建物の中では、その建物の入り口に赤い丸。マップで建物（か名前）を押すと、その建物の入り口の1つ下のマスへ移る（村長がいれば左右。`farm-screen.tsx` の `goTo`）。
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
-- `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。
+- `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。Vercel Web Analytics のスクリプト（`/_vercel/insights/script.js`）もここで読み込む（Cookie なし。ダッシュボードは Vercel の kitsuonmura プロジェクトの Analytics）。
 
 ### 自分の種への水やり（Web版だけ）
 - 種を蒔いた人も、自分の種に1回だけ水やりできる（自分の種のモーダルの「自分に水やりする」）。「最大100人」の枠には数えない（water_count・waterers は増えない）。`supabase/migrations/0007` の `water_seed`。

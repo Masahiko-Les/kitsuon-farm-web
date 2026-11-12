@@ -72,6 +72,10 @@
         flex: 1;
       }
     </style>
+    <!-- Vercel Web Analytics（ページを見た回数。Cookie を使わず、村人を特定する情報は送らない）。
+         Vercel の本番でだけ動く（ローカルでは /_vercel/insights がないので何もしない） -->
+    <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </head>
 
   <body>
