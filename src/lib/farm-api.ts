@@ -161,6 +161,14 @@ export async function readMyLetter(seedId: string, uid: string): Promise<Letter 
   return r ? toLetter(r) : null;
 }
 
+// ほかの村人の種に送った水やりの手紙の数（自分の種への水やりは数えない）。初めての水やりで村長が話しかけるのに使う
+export async function countMyWaterings(uid: string): Promise<number> {
+  const { count, error } = await supabase.from("letters").select("id", { count: "exact", head: true })
+    .eq("from_uid", uid).neq("to_uid", uid);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 /* ---------- 水やり（RPC。種をロックして、1人1回・最大 MAX_WATERERS 人を確かめる） ---------- */
 // 'gone' / 'already' / 'full' / 'blocked' の Error になることがある
 export async function waterSeed(_uid: string, _name: string, seed: Seed, _seedText: string, text: string) {

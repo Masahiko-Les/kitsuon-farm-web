@@ -127,6 +127,14 @@ export function FarmScreen() {
     Object.assign(sceneRef.current, { seeds: visibleSeeds, kindOf, hasUnread });
   }, [visibleSeeds, kindOf, hasUnread]);
 
+  // はじめて村に来たとき（名前の登録と同意のすぐあと）は、村長が村のことを話す
+  const { justJoined, clearJustJoined } = farm;
+  useEffect(() => {
+    if (!justJoined) return;
+    clearJustJoined();
+    a.showOrientation();
+  }, [justJoined, clearJustJoined, a]);
+
   /* ---------- ほかの村人 ---------- */
   // 自分の立ち位置が変わるたびに知らせる（同じ場所の村に、場所だけが届く）
   const announce = useVillagers(isConfigured && farm.phase === "ready", others);

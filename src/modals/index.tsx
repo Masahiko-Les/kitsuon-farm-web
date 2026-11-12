@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
-import { VillageMap, addEffect } from "@/components/farm-map";
+import { MayorPortrait, VillageMap, addEffect } from "@/components/farm-map";
 import { FlowerIcon } from "@/components/flower-icon";
 import { useModal } from "@/components/modal-host";
 import { useToast } from "@/components/toast";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui";
 import { confirmDialog } from "@/lib/confirm";
 import {
-  type CropDoc, type Letter, type Seed, blockUser, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
+  type CropDoc, type Letter, type Seed, blockUser, countMyWaterings, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
   reportSeed, sayThanks, sowSeed, waterSeed,
 } from "@/lib/farm-api";
 import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
@@ -59,6 +59,8 @@ export function useActions() {
     showMap: (here: { x: number; y: number }, blooms: { x: number; y: number; bloom: string }[], onGo: (id: string) => void) =>
       modal.open(<MapModal here={here} blooms={blooms} onGo={onGo} />),
     showMayor: () => modal.open(<MayorModal />),
+    showOrientation: () => modal.open(<OrientationModal />),
+    showMayorThanks: () => modal.open(<MayorThanksModal />),
     showDevStaff: () => modal.open(<DevStaffModal />),
     showBlackboard: () => modal.open(<BlackboardModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
@@ -173,12 +175,12 @@ function WateredSeedModal({ seed }: { seed: Seed }) {
   const crop = crops.find((c) => c.letterId === `${seed.id}_${uid}`);
   return (
     <>
-      <Title>{`${seed.ownerName}さんの${seedNameOf(seed.id)}`}</Title>
+      <Title>{`誰かの${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       <SectionLabel>あなたが送った手紙</SectionLabel>
       <Paper text={letter} from={`${name}より`} />
       {crop
-        ? <Body style={{ marginTop: 14 }}>{`${seed.ownerName}さんから「ありがとう」が届き、${cropById(crop.cropType).name}が咲きました。`}</Body>
+        ? <Body style={{ marginTop: 14 }}>{`種を蒔いた人から「ありがとう」が届き、${cropById(crop.cropType).name}が咲きました。`}</Body>
         : null}
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
@@ -203,7 +205,7 @@ function SeedModal({ seed, text }: { seed: Seed; text: string }) {
 
   return (
     <>
-      <Title>{`${seed.ownerName}さんの${seedNameOf(seed.id)}`}</Title>
+      <Title>{`誰かの${seedNameOf(seed.id)}`}</Title>
       <Paper text={text} />
       <Body style={{ marginTop: 14 }}>水やりしますか？</Body>
       <Actions>
@@ -252,7 +254,13 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
       refresh();
       a.close();
       addEffect("water", seed.x, seed.y);
-      toast(self ? "自分の種に水やりしました。手紙は郵便受けに届きました。" : `水やりしました。手紙は${seed.ownerName}さんに届きました。`);
+      toast(self ? "自分の種に水やりしました。手紙は郵便受けに届きました。" : "水やりしました。手紙は種を蒔いた人に届きました。");
+      // ほかの村人の種への、初めての水やりなら、村長が話しかけてくる
+      if (!self) {
+        countMyWaterings(uid)
+          .then((n) => { if (n === 1) setTimeout(a.showMayorThanks, 1200); })
+          .catch((e) => console.error("countMyWaterings", e));
+      }
     } catch (e) {
       setBusy(false);
       const messages: Record<string, string> = {
@@ -268,11 +276,11 @@ function WaterLetterModal({ seed, seedText, initial = "" }: { seed: Seed; seedTe
   return (
     <>
       <Title>{self ? "自分に、優しい言葉で水やりしましょう" : "優しい言葉で水やりしましょう"}</Title>
-      <Details summary={self ? `自分の${seedNameOf(seed.id)}をもう一度読む` : `${seed.ownerName}さんの${seedNameOf(seed.id)}をもう一度読む`}><Paper text={seedText} /></Details>
+      <Details summary={self ? `自分の${seedNameOf(seed.id)}をもう一度読む` : `誰かの${seedNameOf(seed.id)}をもう一度読む`}><Paper text={seedText} /></Details>
       <Tips items={self
         ? ["友だちに声をかけるように、自分にも優しい言葉を", "書いたときの自分を、ねぎらうひとことを"]
         : ["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて"]} />
-      <PaperInput placeholder={self ? "自分へ" : `${seed.ownerName}さんへ`} initial={initial} onChangeText={(t) => { text.current = t; }} />
+      <PaperInput placeholder={self ? "自分へ" : "種を蒔いた人へ"} initial={initial} onChangeText={(t) => { text.current = t; }} />
       <ErrorText>{err}</ErrorText>
       <Actions>
         <Btn kind="quiet" label="もどる" onPress={() => modal.open(self ? <OwnSeedModal seed={seed} /> : <SeedModal seed={seed} text={seedText} />)} />
@@ -311,7 +319,7 @@ function MailboxModal() {
                   {unread ? <T style={s.listIcon}>💌</T> : <FlowerIcon id={cropById(c.cropType).id} size={32} />}
                   <View style={s.listMain}>
                     <T style={s.listName}>
-                      {`${c.sowerName}さんから`}
+                      種を蒔いた人から
                       {unread ? <T style={s.unread}>　未読</T> : null}
                     </T>
                     <T style={s.listSub} numberOfLines={1}>{`${dateText(c.harvestedAt)}　${THANKS_TEXT}`}</T>
@@ -353,10 +361,10 @@ function ThanksModal({ crop: c }: { crop: CropDoc }) {
     <>
       <View style={{ alignItems: "center" }}>
         <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={info.id} size={96} style={s.cropBig} /></Animated.View>
-        <Title>{`${c.sowerName}さんから`}</Title>
+        <Title>種を蒔いた人から</Title>
       </View>
       <Animated.View entering={FadeInDown.duration(600)}>
-        <Paper text={THANKS_TEXT} from={`${c.sowerName}より`} minLines={1} />
+        <Paper text={THANKS_TEXT} from="種を蒔いた人より" minLines={1} />
       </Animated.View>
       <Body style={{ marginTop: 14 }}>{`あなたの水やりで${info.name}が咲きました。`}</Body>
       <Actions>
@@ -534,7 +542,82 @@ function MayorModal() {
     <>
       <Title>村長</Title>
       <Body>村長「よう元気か」</Body>
+      <Actions>
+        <Btn kind="quiet" label="村のことを聞く" onPress={a.showOrientation} />
+        <Btn label="とじる" onPress={a.close} />
+      </Actions>
+    </>
+  );
+}
+
+// はじめて、ほかの村人の種に水やりしたとき
+function MayorThanksModal() {
+  const a = useActions();
+  return (
+    <>
+      <View style={s.mayorHead}>
+        <MayorPortrait size={64} />
+        <View style={{ flex: 1 }}><Title>村長</Title></View>
+      </View>
+      <Body>村長「ありがとうな。これで村がまた少し元気になった」</Body>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+/* =========================================================
+   村長のオリエンテーション（はじめて村に来たとき。村長に「村のことを聞く」でもう一度）
+   ========================================================= */
+const ORIENTATION: { title: string; lines: string[] }[] = [
+  { title: "ようこそ、吃音村へ", lines: [
+    "よう来たな。わしはこの村の村長じゃ。",
+    "少しだけ、この村のことを話させておくれ。",
+  ] },
+  { title: "吃音のある人の村", lines: [
+    "吃音村は、吃音のある人のための村じゃ。",
+    "ことばがつかえても、ここでは誰も急かさん。自分のペースで、ゆっくり過ごしておくれ。",
+  ] },
+  { title: "苦労の種", lines: [
+    "吃音で苦労したことがあったら、草地に立って「蒔く」を押してごらん。その苦労が「種」になって、土に埋まる。",
+    "北東の砂漠では、これからの挑戦や、やってみたことを「挑戦の種」として蒔けるぞ。",
+  ] },
+  { title: "水やり", lines: [
+    "村を歩いていると、土がきらっと光るところがある。そこには誰かの種が埋まっておる。",
+    "見つけたら、優しい言葉の手紙で水やりをしてあげておくれ。手紙は、種を蒔いた人の郵便受けにすぐ届く。",
+  ] },
+  { title: "花が咲く", lines: [
+    "手紙を受け取った人が「ありがとう」を返すと、その種から花が咲く。",
+    "花は、蒔いた人と水やりした人の2人の思い出帳に入って、村の地面にも咲くんじゃ。咲いたあとも、水やりの手紙は送れるぞ。",
+  ] },
+  { title: "完全に匿名の村", lines: [
+    "大事なことをひとつ。この村は完全に匿名じゃ。メールアドレスも本名もいらんし、連絡先は書けん。",
+    "種には、蒔いた人の村人名すら出さん。誰の苦労かは、誰にもわからん。だから安心して、本当の気持ちを蒔いておくれ。",
+  ] },
+  { title: "困ったときは", lines: [
+    "嫌な言葉が届いたら、通報やブロックができる。本当につらいときは、相談できる窓口もあるからの。",
+    "わしはいつも村の道を歩いておる。また話を聞きたくなったら、声をかけておくれ。",
+  ] },
+];
+
+function OrientationModal() {
+  const a = useActions();
+  const [page, setPage] = useState(0);
+  const p = ORIENTATION[page];
+  const last = page === ORIENTATION.length - 1;
+  return (
+    <>
+      <View style={s.mayorHead}>
+        <MayorPortrait size={64} />
+        <View style={{ flex: 1 }}>
+          <Title>{p.title}</Title>
+          <T style={s.mayorPage}>{`村長のはなし　${page + 1} / ${ORIENTATION.length}`}</T>
+        </View>
+      </View>
+      {p.lines.map((l) => <Body key={l}>{`村長「${l}」`}</Body>)}
+      <Actions>
+        {page > 0 ? <Btn kind="quiet" label="もどる" onPress={() => setPage(page - 1)} /> : null}
+        <Btn label={last ? "村を歩く" : "次へ"} onPress={() => (last ? a.close() : setPage(page + 1))} />
+      </Actions>
     </>
   );
 }
@@ -711,7 +794,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
     ? "あなたの種に、自分で水やりしました。"
     : c.sowerUid === uid
     ? `あなたの種に、${c.watererName}さんが水やりしてくれました。`
-    : `あなたが${c.sowerName}さんの${seedNameOf(c.seedId)}に水やりしました。`;
+    : `あなたが誰かの${seedNameOf(c.seedId)}に水やりしました。`;
   return (
     <>
       <View style={{ alignItems: "center" }}>
@@ -719,7 +802,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
         <Title>{`${info.name}　${dateText(c.harvestedAt)}`}</Title>
       </View>
       <Body>{lead}</Body>
-      <SectionLabel>{`${c.sowerName}さんの${seedNameOf(c.seedId)}`}</SectionLabel>
+      <SectionLabel>{`${c.sowerUid === uid ? "あなた" : "誰か"}の${seedNameOf(c.seedId)}`}</SectionLabel>
       <Paper text={c.seedText} />
       <SectionLabel>{self ? "自分への手紙" : `${c.watererName}さんの手紙`}</SectionLabel>
       <Paper text={c.letterText} />
@@ -829,6 +912,8 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   clerk: { gap: 10, marginTop: 6 },
+  mayorHead: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 6 },
+  mayorPage: { fontSize: 12, color: C.sub, marginTop: -6 },
   consult: { flex: 1, minWidth: 0, alignSelf: "center" }, // 狭いときは折り返して、ボタンを1列に収める
   board: { backgroundColor: "#2f5a46", borderColor: "#7a5235", borderWidth: 6, borderRadius: 4, padding: 12, marginBottom: 10 },
   boardHead: { color: "#f4f7f2", fontSize: 16, marginBottom: 8, textDecorationLine: "underline" },

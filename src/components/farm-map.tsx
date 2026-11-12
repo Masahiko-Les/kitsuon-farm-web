@@ -1247,11 +1247,16 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
   );
 
   useEffect(() => {
-    if (paused || !view.w) return;
-    let raf = 0;
-    const loop = (t: number) => {
+    if (!view.w) return;
+    const draw = (t: number) => {
       const sc = scene.current;
       picture.value = sc.area === "farm" ? frame(base, sc, t, view) : roomFrame(sc.area, rooms[sc.area], sc, t, view);
+    };
+    // 止まっているあいだ（モーダルが開いている）も、いまの場所を1枚は描いておく
+    if (paused) { draw(performance.now()); return; }
+    let raf = 0;
+    const loop = (t: number) => {
+      draw(t);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -1273,6 +1278,25 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
         </Canvas>
       ) : null}
     </View>
+  );
+}
+
+/* ---------- 村長の顔（オリエンテーションで出す） ---------- */
+let mayorPic: SkPicture | null = null;
+function mayorPicture(): SkPicture {
+  mayorPic ??= createPicture((canvas) => {
+    cv = canvas;
+    drawMayor({ x: 0, y: 0, dir: "down", fromX: 0, fromY: 0, moveStart: 0, walkStart: 0, walkUntil: 0 }, 0);
+  }, Skia.XYWHRect(0, 0, TILE, TILE));
+  return mayorPic;
+}
+// 16ドットの村長を size（16の倍数）に広げて描く
+export function MayorPortrait({ size = 64 }: { size?: number }) {
+  const picture = useMemo(() => mayorPicture(), []);
+  return (
+    <Canvas style={{ width: size, height: size }} accessibilityLabel="村長" accessibilityRole="image">
+      <Group transform={[{ scale: size / TILE }]}><Picture picture={picture} /></Group>
+    </Canvas>
   );
 }
 

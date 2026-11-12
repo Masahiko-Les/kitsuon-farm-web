@@ -37,6 +37,8 @@ type FarmState = {
   hideSeed: (id: string) => void;
   markThanksSeen: (id: string) => void;
   deleteAllData: () => Promise<void>;
+  justJoined: boolean; // 名前を登録して同意したばかり（村長のオリエンテーションを出す）
+  clearJustJoined: () => void;
   refresh: () => void; // 自分で書き込んだあと、Realtime の通知を待たずに一覧を読み直す
 };
 
@@ -142,8 +144,14 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // 新しく村に来た人（名前を登録した人）。同意のあとに村長のオリエンテーションを出す。規約の改定で同意し直す人には出さない
+  const newcomer = useRef(false);
+  const [justJoined, setJustJoined] = useState(false);
+  const clearJustJoined = useCallback(() => setJustJoined(false), []);
+
   const register = useCallback(async (n: string) => {
     await registerName(uid, n);
+    newcomer.current = true;
     setName(n);
     setPhase("terms");
   }, [uid]);
@@ -165,6 +173,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const agree = useCallback(async () => {
     await agreeTerms(uid, name);
+    if (newcomer.current) { newcomer.current = false; setJustJoined(true); }
     setPhase("ready");
   }, [uid, name]);
 
@@ -204,9 +213,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `sower_uid=eq.${uid}` }, () => reload("crops"))
       .on("postgres_changes", { event: "*", schema: "public", table: "crops", filter: `waterer_uid=eq.${uid}` }, (p) => {
-        const c = p.new as { sower_name: string; sower_uid: string; crop_type: string };
+        const c = p.new as { sower_uid: string; crop_type: string };
         if (p.eventType === "INSERT" && c.sower_uid !== uid) {
-          toast(`${c.sower_name}さんから「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が咲きました。`);
+          toast(`種を蒔いた人から「ありがとう」。あなたの言葉で${cropById(c.crop_type).name}が咲きました。`);
         }
         reload("crops");
       })
@@ -238,7 +247,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const value: FarmState = {
     phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
-    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, refresh,
+    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, justJoined, clearJustJoined, refresh,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
 }
