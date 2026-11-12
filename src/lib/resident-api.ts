@@ -108,6 +108,11 @@ export async function saveMyCard(uid: string, c: CardInput, status: "ok" | "revi
   }));
 }
 
+// 吃音村の人口（住民票を書いた人数。本人だけが読める住民票も数える。0009）
+export async function loadResidentCount(): Promise<number> {
+  return must(await supabase.rpc("resident_count")) as number;
+}
+
 export async function deleteMyCard(uid: string) {
   must(await supabase.from("resident_cards").delete().eq("uid", uid));
 }

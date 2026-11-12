@@ -19,6 +19,7 @@ import {
 import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
 import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
+import { loadResidentCount } from "@/lib/resident-api";
 import { DEV_HIDDEN_KEY, type DevIdea, addIdea, loadBoard, reportIdea } from "@/lib/dev-api";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
@@ -538,12 +539,21 @@ function MayorModal() {
 
 // 係員の窓口。住民票を書く・読む（画面は src/screens/resident.tsx）
 function ClerkModal() {
+  const { uid } = useFarm();
   const a = useActions();
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!uid || uid === "offline") return;
+    let alive = true;
+    loadResidentCount().then((n) => { if (alive) setCount(n); }).catch((e) => console.error("resident_count", e));
+    return () => { alive = false; };
+  }, [uid]);
   const go = (path: "/resident" | "/residents") => { a.close(); router.push(path); };
   return (
     <>
       <Title>村役場の窓口</Title>
       <Body>係員「こんにちは。ここは住民票の窓口です。」</Body>
+      {count !== null ? <Body>{`係員「現在の吃音村の人口は${count}人です。」`}</Body> : null}
       <Body>係員「住民票には、自己紹介や、あなたの吃音のことを書いておけます。ほかの村人に見せるかどうかは、あなたが選べますよ。」</Body>
       <View style={s.clerk}>
         <Btn label="わたしの住民票" onPress={() => go("/resident")} />
