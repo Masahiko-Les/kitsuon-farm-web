@@ -370,7 +370,9 @@ export function FarmScreen() {
     if (canSow(pos.x, pos.y)) {
       const near = nearOpenSeed ? "近くに種の気配がする…　" : "";
       const hint = desert ? "砂漠だ。ここに挑戦の種を蒔ける。" : "ここに種を蒔ける。";
-      return { label: "蒔く", hint: `${near}${hint}`, run: () => a.showSow(pos.x, pos.y) };
+      // 砂漠に初めて蒔くときは、先に村長が挑戦の種のことを話す
+      const firstDesert = desert && farm.desertIntroSeen === false;
+      return { label: "蒔く", hint: `${near}${hint}`, run: () => (firstDesert ? a.showDesertIntro(pos.x, pos.y) : a.showSow(pos.x, pos.y)) };
     }
     return { label: "…", hint: nearOpenSeed ? "近くに種の気配がする…" : "今日もいい天気だ。", run: null };
   })();

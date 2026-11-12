@@ -61,6 +61,7 @@ export function useActions() {
       modal.open(<MapModal here={here} blooms={blooms} onGo={onGo} />),
     showMayor: () => modal.open(<MayorModal />),
     showOrientation: () => modal.open(<OrientationModal />),
+    showDesertIntro: (x: number, y: number) => modal.open(<DesertIntroModal x={x} y={y} />),
     showMayorSeed: (x: number, y: number) => modal.open(<MayorSeedModal x={x} y={y} />),
     showMayorMemory: () => modal.open(<MayorMemory />),
     showDevStaff: () => modal.open(<DevStaffModal />),
@@ -673,8 +674,36 @@ const ORIENTATION_MAYOR_SEED = { title: "さっそく水やりを", lines: [
 function OrientationModal() {
   const { mayorSeed } = useFarm();
   const a = useActions();
-  const [page, setPage] = useState(0);
   const pages = mayorSeed.state === "pending" ? [...ORIENTATION, ORIENTATION_MAYOR_SEED] : ORIENTATION;
+  return <MayorTalk pages={pages} lastLabel="村を歩く" onDone={a.close} />;
+}
+
+// 砂漠に初めて種を蒔こうとしたとき、村長が挑戦の種のことを話す。話し終えたら、そのまま蒔く画面へ
+const DESERT_INTRO: { title: string; lines: string[] }[] = [
+  { title: "砂漠の挑戦の種", lines: [
+    "おお、砂漠まで来たか。この砂漠では、苦労ではなく「挑戦」を種にできるんじゃ。",
+    "これからやってみたいことでも、もうやってみたことでもいい。うまくいったかどうかは関係ないぞ。",
+  ] },
+  { title: "砂漠の花", lines: [
+    "挑戦の種にも、村人が水やりの手紙をくれる。「ありがとう」を返すと、砂漠の花が咲くんじゃ。",
+    "砂漠の花は、思い出帳の「砂漠の図鑑」に入るぞ。",
+  ] },
+  { title: "思いきって蒔いておくれ", lines: [
+    "挑戦の種にも、蒔いた人の村人名は出ないのじゃ。",
+    "小さな一歩でもかまわん。思いきって蒔いておくれ。",
+  ] },
+];
+
+function DesertIntroModal({ x, y }: { x: number; y: number }) {
+  const { markDesertIntroSeen } = useFarm();
+  const a = useActions();
+  useEffect(() => { markDesertIntroSeen(); }, [markDesertIntroSeen]);
+  return <MayorTalk pages={DESERT_INTRO} lastLabel="挑戦の種を蒔く" onDone={() => a.showSow(x, y)} />;
+}
+
+// 村長が何ページかに分けて話す（オリエンテーション・砂漠の話）
+function MayorTalk({ pages, lastLabel, onDone }: { pages: { title: string; lines: string[] }[]; lastLabel: string; onDone: () => void }) {
+  const [page, setPage] = useState(0);
   const p = pages[page];
   const last = page === pages.length - 1;
   return (
@@ -686,10 +715,11 @@ function OrientationModal() {
           <T style={s.mayorPage}>{`村長のはなし　${page + 1} / ${pages.length}`}</T>
         </View>
       </View>
-      {p.lines.map((l) => <Body key={l}>{`「${l}」`}</Body>)}
+      {/* せりふを「」でくくるので、中のかぎかっこは『』にする */}
+      {p.lines.map((l) => <Body key={l}>{`「${l.replace(/「/g, "『").replace(/」/g, "』")}」`}</Body>)}
       <Actions>
         {page > 0 ? <Btn kind="quiet" label="もどる" onPress={() => setPage(page - 1)} /> : null}
-        <Btn label={last ? "村を歩く" : "次へ"} onPress={() => (last ? a.close() : setPage(page + 1))} />
+        <Btn label={last ? lastLabel : "次へ"} onPress={() => (last ? onDone() : setPage(page + 1))} />
       </Actions>
     </>
   );

@@ -14,6 +14,7 @@ import { type Crop, TERMS_VERSION, cropById, randomCrop } from "@/lib/game";
 import { type MayorSeedState, mayorCropOf, mayorSeedKey } from "@/lib/mayor-seed";
 
 const HIDDEN_KEY = "kitsuon-hidden-seeds";
+const desertIntroKey = (uid: string) => `kitsuon-desert-intro-${uid}`;
 const SEEN_THANKS_KEY = "kitsuon-seen-thanks";
 
 export type Phase = "loading" | "error" | "name" | "terms" | "ready";
@@ -41,6 +42,8 @@ type FarmState = {
   mayorSeed: MayorSeedState; // 村長が蒔いた種（新しい村人の、初めての水やりの練習。端末に保存）
   mayorCrop: CropDoc | null; // 村長の種に水やりして咲いた花（思い出帳に入れる）
   waterMayorSeed: (x: number, y: number, letter: string) => Crop;
+  desertIntroSeen: boolean | null; // 砂漠の村長の話を聞いたか（null は読み込み中。端末に保存）
+  markDesertIntroSeen: () => void;
   justJoined: boolean; // 名前を登録して同意したばかり（村長のオリエンテーションを出す）
   clearJustJoined: () => void;
   refresh: () => void; // 自分で書き込んだあと、Realtime の通知を待たずに一覧を読み直す
@@ -167,6 +170,21 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
     return () => { alive = false; setMayorSeed({ state: "none" }); };
   }, [uid]);
+  // 砂漠に初めて種を蒔くときの村長の話。村人ごとに端末へ保存する
+  const [desertIntroSeen, setDesertIntroSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    AsyncStorage.getItem(desertIntroKey(uid))
+      .then((v) => { if (alive) setDesertIntroSeen(v === "1"); })
+      .catch(() => { if (alive) setDesertIntroSeen(false); });
+    return () => { alive = false; setDesertIntroSeen(null); };
+  }, [uid]);
+  const markDesertIntroSeen = useCallback(() => {
+    setDesertIntroSeen(true);
+    AsyncStorage.setItem(desertIntroKey(uid), "1").catch(() => {});
+  }, [uid]);
+
   const waterMayorSeed = useCallback((x: number, y: number, letter: string) => {
     const crop = randomCrop(`${x}_${y}`);
     saveMayorSeed(uid, { state: "done", x, y, letter, bloom: crop.id, at: new Date().toISOString() });
@@ -194,7 +212,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setPhase("ready");
       throw e;
     }
-    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY, mayorSeedKey(current)]).catch(() => {});
+    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY, mayorSeedKey(current), desertIntroKey(current)]).catch(() => {});
     setHiddenSeeds(new Set());
     setSeenThanks(new Set());
   }, [uid]);
@@ -279,7 +297,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const value: FarmState = {
     phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
-    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, mayorSeed, mayorCrop, waterMayorSeed, justJoined, clearJustJoined, refresh,
+    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, mayorSeed, mayorCrop, waterMayorSeed, desertIntroSeen, markDesertIntroSeen, justJoined, clearJustJoined, refresh,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
 }
