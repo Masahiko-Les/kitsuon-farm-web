@@ -62,6 +62,7 @@ export default function RootLayout() {
                 <Stack.Screen name="resident-view" options={{ title: "住民票" }} />
                 <Stack.Screen name="resident-admin" options={{ title: "運営：住民票の確認" }} />
                 <Stack.Screen name="library-admin" options={{ title: "運営：図書館の確認" }} />
+                <Stack.Screen name="campfire-admin" options={{ title: "運営：焚き火の確認" }} />
               </Stack>
               </View>
             </ModalHost>

@@ -3,24 +3,25 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FarmMap, MAYOR_MOVE_MS, type Other, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
+import { BOY_MOVE_MS, FarmMap, MAYOR_MOVE_MS, setFireCount, type Other, type Player, type Scene, type SeedKind, playerPos } from "@/components/farm-map";
 import { useModal } from "@/components/modal-host";
 import { SwipeArea } from "@/components/swipe-walk";
 import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, LIBRARY_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, cropById, isDesert, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, LIBRARY_BOY_START, LIBRARY_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, cropById, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { isConfigured } from "@/lib/supabase";
 import { useFarm } from "@/state/farm";
+import { loadFireCount } from "@/lib/campfire";
 import { MAYOR_SEED_SPOTS, MAYOR_UID, mayorSeedName, mayorSeedOf } from "@/lib/mayor-seed";
 import { useVillagers } from "@/state/village";
 import { C } from "@/theme";
 
 // go は建物への出入りと、カフェの丸椅子に座ること（描画ループの状態を変えるので、run とは分けて pressA で扱う）
-type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "bench" | "mayor"; seat?: { x: number; y: number } };
+type Action = { label: string; hint: string; run: (() => void) | null; go?: RoomId | "leave" | "sit" | "bench" | "mayor" | "boy"; seat?: { x: number; y: number } };
 
 const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
   house: {
@@ -146,6 +147,7 @@ export function FarmScreen() {
     area: "farm",
     player: { ...START, dir: "down", fromX: START.x, fromY: START.y, moveStart: 0, walkStart: 0, walkUntil: 0 } satisfies Player,
     mayor: { ...MAYOR_START, dir: "down", fromX: MAYOR_START.x, fromY: MAYOR_START.y, moveStart: 0, walkStart: 0, walkUntil: 0 },
+    boy: { ...LIBRARY_BOY_START, dir: "down", fromX: LIBRARY_BOY_START.x, fromY: LIBRARY_BOY_START.y, moveStart: 0, walkStart: 0, walkUntil: 0 },
     others,
     seeds: [],
     kindOf: () => null,
@@ -210,6 +212,50 @@ export function FarmScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  /* ---------- 焚き火：24時間以内にくべられた薪の数で、火の大きさを変える ---------- */
+  const fireReady = isConfigured && farm.phase === "ready";
+  useEffect(() => {
+    if (!fireReady) return;
+    const load = () => { loadFireCount().then(setFireCount).catch((e) => console.error("campfire", e)); };
+    load();
+    const timer = setInterval(load, 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [fireReady]);
+
+  /* ---------- 図書館の少年：床の上を歩きまわる ---------- */
+  const [boyAt, setBoyAt] = useState(LIBRARY_BOY_START);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const lib = ROOMS.library;
+    const stepOnce = () => {
+      const sc = sceneRef.current;
+      const b = sc.boy;
+      // 話しているあいだは立ち止まる。ときどき立ち止まって本を読む
+      if (!modalOpen.current && Math.random() > 0.35) {
+        const p = sc.player;
+        const free = (Object.keys(DIRS) as Dir[]).filter((d) => {
+          const [dx, dy] = DIRS[d];
+          const nx = b.x + dx, ny = b.y + dy;
+          const playerHere = sc.area === "library" && nx === p.x && ny === p.y;
+          const atEntry = nx === lib.entry.x && ny === lib.entry.y; // 入ってきた村人と重ならないように
+          return roomTileAt("library", nx, ny) === "." && !playerHere && !atEntry;
+        });
+        const back = REVERSE[b.dir];
+        const ahead = free.filter((d) => d !== back);
+        const list = ahead.length ? ahead : free;
+        const dir = ahead.includes(b.dir) && Math.random() < 0.6 ? b.dir : list[Math.floor(Math.random() * list.length)];
+        if (dir) {
+          const [dx, dy] = DIRS[dir];
+          const now = performance.now();
+          Object.assign(b, { fromX: b.x, fromY: b.y, x: b.x + dx, y: b.y + dy, dir, moveStart: now, walkStart: now, walkUntil: now + BOY_MOVE_MS });
+          setBoyAt({ x: b.x, y: b.y });
+        }
+      }
+      timer = setTimeout(stepOnce, 900 + Math.random() * 900);
+    };
+    timer = setTimeout(stepOnce, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 農場と建物の中を行き来する。歩かずに、その場に立たせる
   const warp = useCallback((area: Area, x: number, y: number, dir: Dir) => {
@@ -242,6 +288,8 @@ export function FarmScreen() {
       const c = roomTileAt(area, nx, ny);
       if (c === "E") { leaveRoom(); return; }
       if (!ROOMS[area].walkable.has(c)) { setPos({ x: p.x, y: p.y, dir, area }); return; }
+      // 図書館の少年のいるマス（向かっている先も）には入れない
+      if (area === "library" && nx === sc.boy.x && ny === sc.boy.y) { setPos({ x: p.x, y: p.y, dir, area }); return; }
     } else {
       // 村長のいるマス（向かっている先も）には入れない
       if (nx === sc.mayor.x && ny === sc.mayor.y) { setPos({ x: p.x, y: p.y, dir, area: "farm" }); return; }
@@ -333,6 +381,9 @@ export function FarmScreen() {
         if (front === "V") return { label: "話す", hint: "開発局のフクロウが、作業机で何か考えている。", run: a.showDevStaff };
         if (front === "G") return { label: "読む", hint: "黒板に、村人のアイデアがチョークで書いてある。", run: a.showBlackboard };
       }
+      if (room === "library" && fx === boyAt.x && fy === boyAt.y) {
+        return { label: "話す", hint: "本をかかえた少年が、図書館の中を歩いている。", run: null, go: "boy" };
+      }
       if (room === "library") {
         if (front === "A") return { label: "見る", hint: "左の本棚には、吃音についての本が並んでいる。", run: () => a.showShelf("stutter") };
         if (front === "Z") return { label: "見る", hint: "右の本棚には、心をあたためてくれる本が並んでいる。", run: () => a.showShelf("heart") };
@@ -363,7 +414,7 @@ export function FarmScreen() {
       return { label: "…", hint: "船が停まっている。", run: null };
     }
     if (tileAt(pos.x + dx, pos.y + dy) === "O") {
-      return { label: "…", hint: "焚き火だ。ぱちぱちと火がはぜている。", run: null };
+      return { label: "くべる", hint: "焚き火だ。薪をくべて、ひとこと残していける。", run: a.showCampfire };
     }
     if (tileAt(pos.x + dx, pos.y + dy) === "L") {
       return { label: "座る", hint: "焚き火のそばのベンチだ。座れそうだ。", run: null, go: "bench", seat: { x: pos.x + dx, y: pos.y + dy } };
@@ -424,6 +475,9 @@ export function FarmScreen() {
       // 村長が村人のほうを向いて、返事をする
       sceneRef.current.mayor.dir = REVERSE[sceneRef.current.player.dir];
       a.showMayor();
+    } else if (action.go === "boy") {
+      sceneRef.current.boy.dir = REVERSE[sceneRef.current.player.dir];
+      a.showBoy();
     } else if (action.go === "sit" && action.seat) { warp("cafe", action.seat.x, action.seat.y, "up"); openCafe(); }
     // ベンチに座る。焚き火のほうを向く（焚き火より北のベンチは下、南のベンチは上）
     else if (action.go === "bench" && action.seat) warp("farm", action.seat.x, action.seat.y, action.seat.y < CAMPFIRE.y ? "down" : "up");

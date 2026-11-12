@@ -250,6 +250,8 @@ export const ROOMS: Record<RoomId, Room> = {
     walkable: new Set([".", "E"]),
   },
 };
+// 図書館の中を歩きまわっている少年が、はじめに立つ場所
+export const LIBRARY_BOY_START = { x: 4, y: 9 };
 // 図書館の椅子に座って本を読んでいる村人
 export const LIBRARY_GUESTS: Record<string, string> = { "12_12": "rabbit" };
 // 村役場の中に、ベンチで順番を待っている村人

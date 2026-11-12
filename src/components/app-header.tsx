@@ -18,6 +18,7 @@ const FALLBACK: Record<string, Href> = {
   "resident-view": "/residents",
   "resident-admin": "/settings",
   "library-admin": "/settings",
+  "campfire-admin": "/settings",
   help: "/settings",
   terms: "/settings",
   contact: "/settings",

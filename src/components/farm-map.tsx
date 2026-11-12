@@ -31,7 +31,7 @@ export type SeedKind = "mine" | "mine-review" | "watered" | "full" | "open" | nu
 export type Player = {
   x: number; y: number; dir: Dir; fromX: number; fromY: number; moveStart: number; walkStart: number; walkUntil: number;
 };
-export type Effect = { type: "water" | "sow"; x: number; y: number; start: number; duration: number };
+export type Effect = { type: "water" | "sow" | "fire"; x: number; y: number; start: number; duration: number };
 
 // 描画ループが毎フレーム読むもの。React の再描画を待たずに参照する。
 // ほかの村人。look は服の色の組み合わせ（ID から決める）
@@ -41,6 +41,7 @@ export type Scene = {
   area: Area;
   player: Player;
   mayor: Player; // 村のマップを道に沿ってゆっくり歩く村長
+  boy: Player; // 図書館の中を歩きまわる少年
   others: Map<string, Other>; // 同じ場所にいる、ほかの村人（src/state/village.ts）
   seeds: Seed[];
   kindOf: (s: Seed) => SeedKind;
@@ -50,7 +51,13 @@ export type Scene = {
 // 種を蒔いた・水やりしたときの演出。モーダルからも呼べるようにここで持つ
 let effects: Effect[] = [];
 export function addEffect(type: Effect["type"], x: number, y: number) {
-  effects.push({ type, x, y, start: performance.now(), duration: type === "water" ? 1400 : 700 });
+  effects.push({ type, x, y, start: performance.now(), duration: type === "water" ? 1400 : type === "fire" ? 1600 : 700 });
+}
+
+// 焚き火の大きさ。24時間以内にくべられた薪の数で決める（0：小さな火 1：ふつう 2：大きな火）
+let fireLevel = 1;
+export function setFireCount(n: number) {
+  fireLevel = n === 0 ? 0 : n < 5 ? 1 : 2;
 }
 
 /* ---------- 塗り ---------- */
@@ -227,6 +234,25 @@ function drawCampfire(X: number, Y: number, tx: number, ty: number) {
 }
 function drawFlame(X: number, Y: number, t: number) {
   const k = Math.floor(t / 160) % 3;
+  if (fireLevel === 0) {
+    // 薪がくべられていない、小さな火
+    rect(X + 6, Y + 8, 4, 3, "#e8892b");
+    rect(X + 7, Y + 7 - (k % 2), 2, 1, "#e8892b");
+    rect(X + 7, Y + 9, 2, 2, "#f6d24a");
+    return;
+  }
+  if (fireLevel === 2) {
+    // たくさん薪がくべられた、大きな火
+    rect(X + 3, Y + 3, 10, 8, "#d9622b");
+    rect(X + 4 + (k === 1 ? 1 : 0), Y, 7, 3, "#e8892b");
+    rect(X + 7 + (k === 2 ? -1 : k), Y - 3 + k, 2, 3, "#e8892b");
+    rect(X + 5, Y + 4, 6, 7, "#e8892b");
+    rect(X + 6, Y + 6, 4, 5, "#f6d24a");
+    rect(X + 7, Y + 3 - (k % 2), 2, 2, "#f6d24a");
+    rect(X + 2 + k * 5, Y - 4 - k, 1, 1, "#f6d24a"); // 火の粉
+    rect(X + 12 - k * 4, Y - 6 + k, 1, 1, "#f6d24a");
+    return;
+  }
   rect(X + 4, Y + 5, 8, 6, "#e8892b");
   rect(X + 5 + (k === 1 ? 1 : 0), Y + 3, 5, 2, "#e8892b");
   rect(X + 7 + (k === 2 ? -1 : k), Y + 1 + k, 2, 2, "#e8892b");
@@ -695,6 +721,48 @@ function drawMayor(p: Player, t: number) {
   }
 }
 
+/* ---------- 図書館の少年 ---------- */
+export const BOY_MOVE_MS = 320;
+// 帽子はかぶらず、黒い髪。赤いシャツに半ズボンで、本を1冊かかえている
+function drawBoy(p: Player, t: number) {
+  const { fx, fy, moving } = playerPos(p, t, BOY_MOVE_MS);
+  const X = Math.round(fx * TILE), Y = Math.round(fy * TILE);
+  const ph = moving ? (1 + Math.floor((t - p.walkStart) / 140)) % 4 : -1;
+  const step = ph === 1 || ph === 3;
+  const y = Y + 1 + (step ? -1 : 0); // 村人より少し背が低い
+  const skin = "#f2c9a0", hair = "#2a2018", shirt = "#c4473a", shirt2 = "#d9655a", pants = "#3f5f8a", shoe = "#4a3a2a";
+  const side = p.dir === "left" || p.dir === "right";
+  const front = p.dir === "right" ? 1 : -1;
+  rect(X + 4, Y + 15, 8, 1, "rgba(0,0,0,0.22)");
+  // 足と半ズボン
+  rect(X + 5, y + 12, 2, 2 - (ph === 3 ? 1 : 0), skin);
+  rect(X + 9, y + 12, 2, 2 - (ph === 1 ? 1 : 0), skin);
+  rect(X + 5, Y + 14 - (ph === 3 ? 1 : 0), 2, 1, shoe);
+  rect(X + 9, Y + 14 - (ph === 1 ? 1 : 0), 2, 1, shoe);
+  rect(X + 5, y + 10, 6, 2, pants);
+  // 体
+  rect(X + 5, y + 7, 6, 4, shirt);
+  rect(X + 5, y + 7, 6, 1, shirt2);
+  // かかえている本
+  if (p.dir === "down") rect(X + 6, y + 8, 4, 3, "#3f6fb0");
+  else if (side) rect(X + 7 + front * 3, y + 8, 2, 3, "#3f6fb0");
+  // 腕
+  if (!side) { rect(X + 4, y + 8, 1, 3, skin); rect(X + 11, y + 8, 1, 3, skin); }
+  // 頭
+  rect(X + 5, y + 2, 6, 5, skin);
+  rect(X + 5, y + 1, 6, 2, hair);
+  if (p.dir === "up") {
+    rect(X + 5, y + 2, 6, 4, hair);
+  } else if (p.dir === "down") {
+    rect(X + 4, y + 2, 1, 3, hair); rect(X + 11, y + 2, 1, 3, hair);
+    rect(X + 6, y + 4, 1, 1, "#2a2018"); rect(X + 9, y + 4, 1, 1, "#2a2018");
+    rect(X + 6, y + 5, 1, 1, "rgba(230,120,120,0.5)"); rect(X + 9, y + 5, 1, 1, "rgba(230,120,120,0.5)");
+  } else {
+    rect(front > 0 ? X + 5 : X + 9, y + 2, 2, 3, hair);
+    rect(front > 0 ? X + 9 : X + 6, y + 4, 1, 1, "#2a2018");
+  }
+}
+
 function drawEffects(t: number) {
   effects = effects.filter((e) => t - e.start < e.duration);
   for (const e of effects) {
@@ -706,6 +774,14 @@ function drawEffects(t: number) {
         rect(X + 2 + i * 3, Y - 4 + dy, 1, 2, "#9ed3e6");
       }
       rect(X + 3, Y + 13, 10 * Math.min(1, k * 2), 1, "#5fa8c8");
+    }
+    if (e.type === "fire") {
+      // 薪をくべたとき、火の粉が舞い上がる
+      for (let i = 0; i < 7; i++) {
+        const rise = k * (14 + (i % 3) * 6);
+        const sway = Math.round(Math.sin(k * 6 + i) * 2);
+        rect(X + 2 + i * 2 + sway, Y + 4 - rise, 1, 1, i % 2 ? "#f6d24a" : "#e8892b");
+      }
     }
     if (e.type === "sow") {
       const r = Math.floor(k * 6);
@@ -1225,12 +1301,13 @@ function roomFrame(id: RoomId, art: RoomArt, scene: Scene, t: number, v: ViewSiz
     canvas.translate(-cam.x, -cam.y);
     canvas.drawPicture(art.base);
     // 家具は行ごとに描き、村人は立っている行の家具のあとに描く（下の行の家具が手前に来る）
-    const people = [...scene.others.values(), scene.player]
-      .map((p) => ({ p, fy: playerPos(p, t).fy - (p === scene.player ? 0 : 0.001) }))
+    const people = [...scene.others.values(), scene.player, ...(id === "library" ? [scene.boy] : [])]
+      .map((p) => ({ p, fy: playerPos(p, t, p === scene.boy ? BOY_MOVE_MS : MOVE_MS).fy - (p === scene.player ? 0 : 0.001) }))
       .sort((a, b) => a.fy - b.fy);
     let k = 0;
     const drawPerson = (p: Player, fy: number) => {
       // 丸椅子に座っているときは、少し上に描いて腰かけた形にする
+      if (p === scene.boy) { drawBoy(p, t); return; }
       const seated = roomTileAt(id, p.x, p.y) === "s" && Math.abs(fy - p.y) < 0.01;
       if (seated) { canvas.save(); canvas.translate(0, -6); }
       drawPlayer(p, t);

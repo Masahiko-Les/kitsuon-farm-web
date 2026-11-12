@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
-import { MayorPortrait, VillageMap, addEffect } from "@/components/farm-map";
+import { MayorPortrait, VillageMap, addEffect, setFireCount } from "@/components/farm-map";
 import { FlowerIcon } from "@/components/flower-icon";
 import { useModal } from "@/components/modal-host";
 import { useToast } from "@/components/toast";
@@ -26,6 +26,9 @@ import {
   AUTHOR_MAX, type Book, LIBRARY_HIDDEN_KEY, type LibraryTarget, type Note, type Review, SHELF_NAME, type Shelf, TITLE_MAX,
   addNote, addReview, builtinBooks, loadMyRequests, loadNotes, loadReviews, loadShelf, reportEntry, requestBook,
 } from "@/lib/library";
+import {
+  CAMPFIRE_HIDDEN_KEY, CAMPFIRE_MAX, type FireMessage, addFireMessage, agoText, loadFire, reportFireMessage,
+} from "@/lib/campfire";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
 import { C, F } from "@/theme";
@@ -74,6 +77,8 @@ export function useActions() {
     showLibraryBook: (book: Book) => modal.open(<LibraryBookModal book={book} />),
     showReviewWrite: (book: Book, initial = "") => modal.open(<ReviewWriteModal book={book} initial={initial} />),
     showLibrarian: () => modal.open(<LibrarianModal />),
+    showBoy: () => modal.open(<BoyModal />),
+    showCampfire: () => modal.open(<CampfireModal />),
     showNotebook: () => modal.open(<NotebookModal />),
     showNoteWrite: () => modal.open(<NoteWriteModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
@@ -1169,6 +1174,129 @@ function LibrarianModal() {
   );
 }
 
+/* =========================================================
+   焚き火：薪をくべて、ひとこと残す（24時間で消える。src/lib/campfire.ts）
+   ========================================================= */
+const CAMPFIRE_AT = { x: 16, y: 14 }; // 広場の焚き火（MAP の O）
+function CampfireModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const toast = useToast();
+  const [list, setList] = useState<FireMessage[] | null>(null);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [loadErr, setLoadErr] = useState("");
+  const text = useRef("");
+  const [len, setLen] = useState(0);
+  const [inputKey, setInputKey] = useState(0);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => {
+    try {
+      const l = await loadFire(uid);
+      setList(l);
+      setFireCount(l.filter((m) => m.status === "ok").length);
+    } catch (e) {
+      console.error(e);
+      setLoadErr("焚き火のまわりの言葉を読めませんでした。");
+      setList([]);
+    }
+  };
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(CAMPFIRE_HIDDEN_KEY)
+      .then((h) => { if (alive && h) setHidden(new Set(JSON.parse(h) as string[])); })
+      .catch(() => {});
+    loadFire(uid)
+      .then((l) => { if (alive) { setList(l); setFireCount(l.filter((m) => m.status === "ok").length); } })
+      .catch((e) => { console.error(e); if (alive) { setLoadErr("焚き火のまわりの言葉を読めませんでした。"); setList([]); } });
+    return () => { alive = false; };
+  }, [uid]);
+
+  const submit = async () => {
+    const t = text.current.trim();
+    if (!t) { setErr("ひとこと書いてから、薪をくべてください。"); return; }
+    if ([...t].length > CAMPFIRE_MAX) { setErr(`${CAMPFIRE_MAX}文字以内にしてください（いま${[...t].length}文字）。`); return; }
+    const res = checkText(t, 0, null);
+    if (res.error) { setErr(res.error); return; }
+    setBusy(true);
+    setErr("");
+    try {
+      await addFireMessage(uid, t, res.crisis ? "review" : "ok");
+      if (res.crisis) { a.showSupport("campfire"); return; }
+      addEffect("fire", CAMPFIRE_AT.x, CAMPFIRE_AT.y);
+      toast("薪をくべた。火がぱちぱちと大きくなった。");
+      text.current = ""; setLen(0); setInputKey((k) => k + 1);
+      await reload();
+    } catch (e) {
+      console.error(e);
+      setErr("くべられませんでした。通信を確認して、もう一度押してください。");
+    }
+    setBusy(false);
+  };
+
+  const report = async (m: FireMessage) => {
+    if (!(await confirm("このひとことを通報しますか？　あなたの画面からは見えなくなり、運営が確認します。", "通報する", true))) return;
+    try { await reportFireMessage(uid, m.id); } catch (e) { console.error(e); }
+    const next = new Set(hidden).add(m.id);
+    setHidden(next);
+    AsyncStorage.setItem(CAMPFIRE_HIDDEN_KEY, JSON.stringify([...next])).catch(() => {});
+    toast("通報しました。運営が確認します。");
+  };
+
+  const shown = (list ?? []).filter((m) => !hidden.has(m.id));
+  return (
+    <>
+      <Title>焚き火</Title>
+      <Body>ぱちぱちと火がはぜている。薪をくべて、ひとこと残していこう。残した言葉は、24時間たつと燃えて消える。</Body>
+      <TextInput
+        key={inputKey}
+        multiline
+        placeholder="ひとこと（200文字以内）"
+        placeholderTextColor="#9b9384"
+        accessibilityLabel="焚き火に残すひとこと"
+        onChangeText={(v) => { text.current = v; setLen([...v].length); }}
+        textAlignVertical="top"
+        style={s.fireInput}
+      />
+      <T style={[s.fireCounter, len > CAMPFIRE_MAX && { color: C.over }]}>{`${len} / ${CAMPFIRE_MAX}文字`}</T>
+      <Small>名前は出さずに、焚き火のまわりの村人みんなが読めます。</Small>
+      <ErrorText>{err}</ErrorText>
+      <Actions>
+        <Btn kind="quiet" label="とじる" onPress={a.close} />
+        <Btn label="薪をくべる" onPress={submit} disabled={busy} />
+      </Actions>
+      <SectionLabel>焚き火のまわりに残された言葉</SectionLabel>
+      {list === null ? <Small>読み込んでいます…</Small> : null}
+      {loadErr ? <ErrorText>{loadErr}</ErrorText> : null}
+      {list !== null && !loadErr && shown.length === 0 ? <Small>いまは、誰の言葉も残っていない。</Small> : null}
+      {shown.map((m) => (
+        <View key={m.id} style={s.fireItem}>
+          <T style={s.fireText}>{m.text}</T>
+          <View style={s.entryMeta}>
+            <T style={s.entrySub}>{m.uid === uid
+              ? `あなたのひとこと${m.status === "ok" ? "" : "（運営が確認中）"}　${agoText(m.createdAt)}`
+              : agoText(m.createdAt)}</T>
+            {m.uid !== uid ? <Pressable accessibilityRole="button" onPress={() => report(m)} hitSlop={8}><T style={s.entryLink}>通報</T></Pressable> : null}
+          </View>
+        </View>
+      ))}
+    </>
+  );
+}
+
+// 図書館を歩きまわっている少年
+function BoyModal() {
+  const a = useActions();
+  return (
+    <>
+      <Title>少年</Title>
+      <Body>「こっこっこっ声が出ない分、ほっほっ！本を読んで立派な人間になるんだ」</Body>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
 // 閲覧テーブルのノート。心に残った文章と、そのときの心境や状況
 function NotebookModal() {
   const { uid } = useFarm();
@@ -1300,7 +1428,7 @@ export function SupportList() {
 }
 
 // seed=種 letter=手紙 cafe=カフェの言葉（保存した） unsaved=カフェの言葉（保存できなかった）
-type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea" | "resident" | "residentPrivate" | "review" | "note" | "request";
+type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea" | "resident" | "residentPrivate" | "review" | "note" | "request" | "campfire";
 const SUPPORT_LEAD: Record<SupportKind, string> = {
   seed: "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。",
   letter: "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。",
@@ -1312,6 +1440,7 @@ const SUPPORT_LEAD: Record<SupportKind, string> = {
   review: "とてもつらい気持ちが書かれていたので、この感想はほかの村人には見せず、運営が確認します。",
   note: "とてもつらい気持ちが書かれていたので、このノートはほかの村人には見せず、運営が確認します。",
   request: "とてもつらい気持ちが書かれていたので、この本の希望は、運営が確認します。",
+  campfire: "とてもつらい気持ちが書かれていたので、このひとことはほかの村人には見せず、運営が確認します。",
 };
 
 // 種を蒔くページから開く相談窓口
@@ -1395,6 +1524,13 @@ const s = StyleSheet.create({
   chalk: { color: "#f4f7f2", fontFamily: F.letter, fontSize: 15, lineHeight: 22 },
   chalkSub: { color: "#b9cbbf", fontSize: 12 },
   chalkLink: { color: "#f2d04b", fontSize: 12, textDecorationLine: "underline" },
+  fireInput: {
+    backgroundColor: C.paper, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8,
+    fontFamily: F.letter, fontSize: 16, lineHeight: 26, color: C.ink, minHeight: 26 * 3 + 16,
+  },
+  fireCounter: { marginTop: 4, fontSize: 12, textAlign: "right", color: C.sub },
+  fireItem: { backgroundColor: "#3a2a1e", borderColor: "#7a5235", borderWidth: 2, borderRadius: 6, padding: 10, marginBottom: 8 },
+  fireText: { color: "#fbe9c8", fontFamily: F.letter, fontSize: 15, lineHeight: 22 },
   spine: { width: 6, alignSelf: "stretch", borderRadius: 2 },
   entry: { marginBottom: 12 },
   entryMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
