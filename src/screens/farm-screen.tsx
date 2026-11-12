@@ -228,7 +228,20 @@ export function FarmScreen() {
     const sc = sceneRef.current;
     const here = sc.area === "farm" ? sc.player : BUILDINGS.find((b) => b.id === sc.area)?.door ?? sc.player;
     const blooms = sc.seeds.flatMap((x) => (x.bloom ? [{ x: x.x, y: x.y, bloom: x.bloom }] : []));
-    a.showMap({ x: here.x, y: here.y }, blooms);
+    a.showMap({ x: here.x, y: here.y }, blooms, goTo);
+  };
+  // マップで押した建物の前（入り口の1つ下のマス）へ移る。村長がいたら、その左右に立つ。入り口のほうを向く
+  const goTo = (id: string) => {
+    const b = BUILDINGS.find((x) => x.id === id);
+    if (!b) return;
+    a.close();
+    const m = sceneRef.current.mayor;
+    const fy = b.door.y + 1;
+    const fx = [b.door.x, b.door.x - 1, b.door.x + 1].find(
+      (x) => WALKABLE.has(tileAt(x, fy)) && !buildingAt(x, fy) && !(x === m.x && fy === m.y),
+    );
+    if (fx === undefined) return;
+    warp("farm", fx, fy, "up");
   };
   const action: Action = (() => {
     const [dx, dy] = DIRS[pos.dir];

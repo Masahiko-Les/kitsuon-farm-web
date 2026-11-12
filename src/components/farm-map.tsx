@@ -2,7 +2,7 @@ import {
   Canvas, FilterMode, Group, MipmapMode, Picture, Skia, type SkCanvas, type SkPaint, type SkPicture, createPicture,
 } from "@shopify/react-native-skia";
 import { type RefObject, useEffect, useMemo, useState } from "react";
-import { type LayoutChangeEvent, PixelRatio, StyleSheet, Text, View } from "react-native";
+import { type LayoutChangeEvent, PixelRatio, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
@@ -1301,7 +1301,8 @@ function villagePicture(here: Spot, blooms: BloomSpot[]): SkPicture {
 }
 
 // here：自分のいるマス（建物の中なら、その建物の入り口）。blooms：村に咲いている花
-export function VillageMap({ here, blooms }: { here: Spot; blooms: BloomSpot[] }) {
+// onPick：建物（または名前）を押したとき、その建物の id を渡す
+export function VillageMap({ here, blooms, onPick }: { here: Spot; blooms: BloomSpot[]; onPick?: (id: string) => void }) {
   const [width, setWidth] = useState(0);
   const scale = width / (MAP_COLS * TILE);
   const picture = useMemo(() => villagePicture(here, blooms), [here, blooms]);
@@ -1320,10 +1321,26 @@ export function VillageMap({ here, blooms }: { here: Spot; blooms: BloomSpot[] }
             <Group transform={[{ scale }]}><Picture picture={picture} /></Group>
           </Canvas>
           {BUILDINGS.map((b) => {
+            const box = at(b.x, b.y);
+            return (
+              <Pressable
+                key={`${b.id}-area`}
+                accessibilityRole="button"
+                accessibilityLabel={`${b.name}の前へ行く`}
+                onPress={() => onPick?.(b.id)}
+                disabled={!onPick}
+                style={{ position: "absolute", left: box.left, top: box.top, width: b.w * TILE * scale, height: (b.h + 1) * TILE * scale }}
+              />
+            );
+          })}
+          {BUILDINGS.map((b) => {
             const p = at(b.x + b.w / 2, b.y);
             return (
-              <View key={b.id} pointerEvents="none" style={[s.label, { left: p.left - 40, top: Math.max(0, p.top - 16) }]}>
-                <Text style={s.labelText}>{b.name}</Text>
+              <View key={b.id} pointerEvents="box-none" style={[s.label, { left: p.left - 40, top: Math.max(0, p.top - 16) }]}>
+                <Pressable onPress={() => onPick?.(b.id)} disabled={!onPick} accessibilityElementsHidden importantForAccessibility="no"
+                  style={({ pressed }) => pressed && { opacity: 0.6 }}>
+                  <Text style={s.labelText}>{b.name}</Text>
+                </Pressable>
               </View>
             );
           })}

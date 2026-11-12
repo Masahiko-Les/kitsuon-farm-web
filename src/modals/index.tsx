@@ -56,8 +56,8 @@ export function useActions() {
     showBook: () => modal.open(<BookModal />),
     showBulletin: () => modal.open(<BulletinModal />),
     showClerk: () => modal.open(<ClerkModal />),
-    showMap: (here: { x: number; y: number }, blooms: { x: number; y: number; bloom: string }[]) =>
-      modal.open(<MapModal here={here} blooms={blooms} />),
+    showMap: (here: { x: number; y: number }, blooms: { x: number; y: number; bloom: string }[], onGo: (id: string) => void) =>
+      modal.open(<MapModal here={here} blooms={blooms} onGo={onGo} />),
     showMayor: () => modal.open(<MayorModal />),
     showDevStaff: () => modal.open(<DevStaffModal />),
     showBlackboard: () => modal.open(<BlackboardModal />),
@@ -540,13 +540,15 @@ function MayorModal() {
 }
 
 // 村全体のマップ（ヘッダーの「マップ」）
-function MapModal({ here, blooms }: { here: { x: number; y: number }; blooms: { x: number; y: number; bloom: string }[] }) {
+function MapModal({ here, blooms, onGo }: {
+  here: { x: number; y: number }; blooms: { x: number; y: number; bloom: string }[]; onGo: (id: string) => void;
+}) {
   const a = useActions();
   return (
     <>
       <Title>吃音村のマップ</Title>
-      <VillageMap here={here} blooms={blooms} />
-      <Small>赤い丸が、いまあなたのいる場所です。</Small>
+      <VillageMap here={here} blooms={blooms} onPick={onGo} />
+      <Small>赤い丸が、いまあなたのいる場所です。建物を押すと、その前まで行けます。</Small>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );
