@@ -9,6 +9,7 @@
 - `src/lib/supabase.ts`：Supabase のクライアント。URL と公開用キーはここの1か所（公開されても問題ない値。守りは RLS）。未入力のあいだはおためしモード。
 - `src/lib/confirm.ts`：`Alert.alert` は Web で出ないので `window.confirm` を使う。Alert を直接使わないこと。
 - `src/screens/farm-screen.tsx`：Web だけ矢印キー/WASD で歩き、Enter/スペースでAボタン。
+- ヘッダーの「マップ」（郵便受けの左）で、村全体のマップ（`farm-map.tsx` の `VillageMap`。地形の絵を縮小し、建物の名前・咲いた花・自分の場所の赤い丸を重ねる）。建物の中では、その建物の入り口に赤い丸。
 - `src/app/_layout.tsx`：Web では最大480pxの縦長画面を中央に置く。
 - `public/index.html`：Web の HTML テンプレート（lang=ja、拡大しない viewport など）。
 

@@ -2,7 +2,7 @@ import {
   Canvas, FilterMode, Group, MipmapMode, Picture, Skia, type SkCanvas, type SkPaint, type SkPicture, createPicture,
 } from "@shopify/react-native-skia";
 import { type RefObject, useEffect, useMemo, useState } from "react";
-import { type LayoutChangeEvent, PixelRatio, StyleSheet, View } from "react-native";
+import { type LayoutChangeEvent, PixelRatio, StyleSheet, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
@@ -1276,6 +1276,68 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
   );
 }
 
+/* ---------- 村全体のマップ（ヘッダーの「マップ」から開く） ---------- */
+// 見せる範囲（マス）。まわりの海を1マス、南は桟橋と船まで
+const MAP_X0 = -1, MAP_Y0 = -1, MAP_COLS = COLS + 2, MAP_ROWS = HARBOR.ship.y + HARBOR.ship.h + 1 - MAP_Y0;
+let villageBase: SkPicture | null = null;
+
+type Spot = { x: number; y: number };
+type BloomSpot = Spot & { bloom: string };
+function villagePicture(here: Spot, blooms: BloomSpot[]): SkPicture {
+  villageBase ??= staticLayer();
+  const base = villageBase;
+  return createPicture((canvas) => {
+    cv = canvas;
+    canvas.translate(-MAP_X0 * TILE, -MAP_Y0 * TILE);
+    canvas.drawPicture(base);
+    for (const b of blooms) drawBloom(canvas, b.x * TILE, b.y * TILE, cropById(b.bloom).id);
+    // 自分のいる場所：赤い丸と白いふち
+    const cx = here.x * TILE + TILE / 2, cy = here.y * TILE + TILE / 2;
+    const ring = Skia.Paint(); ring.setColor(Skia.Color("#ffffff")); ring.setAntiAlias(true);
+    const dot = Skia.Paint(); dot.setColor(Skia.Color("#e0402f")); dot.setAntiAlias(true);
+    canvas.drawCircle(cx, cy, 11, ring);
+    canvas.drawCircle(cx, cy, 8, dot);
+  }, Skia.XYWHRect(0, 0, MAP_COLS * TILE, MAP_ROWS * TILE));
+}
+
+// here：自分のいるマス（建物の中なら、その建物の入り口）。blooms：村に咲いている花
+export function VillageMap({ here, blooms }: { here: Spot; blooms: BloomSpot[] }) {
+  const [width, setWidth] = useState(0);
+  const scale = width / (MAP_COLS * TILE);
+  const picture = useMemo(() => villagePicture(here, blooms), [here, blooms]);
+
+  const at = (x: number, y: number) => ({ left: (x - MAP_X0) * TILE * scale, top: (y - MAP_Y0) * TILE * scale });
+  return (
+    <View
+      style={{ width: "100%", aspectRatio: MAP_COLS / MAP_ROWS, backgroundColor: "#3b7fae" }}
+      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityRole="image"
+      accessibilityLabel="吃音村の全体のマップ"
+    >
+      {width > 0 ? (
+        <>
+          <Canvas style={StyleSheet.absoluteFill}>
+            <Group transform={[{ scale }]}><Picture picture={picture} /></Group>
+          </Canvas>
+          {BUILDINGS.map((b) => {
+            const p = at(b.x + b.w / 2, b.y);
+            return (
+              <View key={b.id} pointerEvents="none" style={[s.label, { left: p.left - 40, top: Math.max(0, p.top - 16) }]}>
+                <Text style={s.labelText}>{b.name}</Text>
+              </View>
+            );
+          })}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  label: { position: "absolute", width: 80, alignItems: "center" },
+  labelText: {
+    fontFamily: "DotGothic16_400Regular", fontSize: 11, color: "#fff", backgroundColor: "rgba(31,39,29,0.75)",
+    paddingHorizontal: 4, borderRadius: 3, overflow: "hidden",
+  },
   fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#3b7fae" },
 });

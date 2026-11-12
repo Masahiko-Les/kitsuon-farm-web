@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
-import { addEffect } from "@/components/farm-map";
+import { VillageMap, addEffect } from "@/components/farm-map";
 import { FlowerIcon } from "@/components/flower-icon";
 import { useModal } from "@/components/modal-host";
 import { useToast } from "@/components/toast";
@@ -56,6 +56,8 @@ export function useActions() {
     showBook: () => modal.open(<BookModal />),
     showBulletin: () => modal.open(<BulletinModal />),
     showClerk: () => modal.open(<ClerkModal />),
+    showMap: (here: { x: number; y: number }, blooms: { x: number; y: number; bloom: string }[]) =>
+      modal.open(<MapModal here={here} blooms={blooms} />),
     showMayor: () => modal.open(<MayorModal />),
     showDevStaff: () => modal.open(<DevStaffModal />),
     showBlackboard: () => modal.open(<BlackboardModal />),
@@ -532,6 +534,19 @@ function MayorModal() {
     <>
       <Title>村長</Title>
       <Body>村長「よう元気か」</Body>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+// 村全体のマップ（ヘッダーの「マップ」）
+function MapModal({ here, blooms }: { here: { x: number; y: number }; blooms: { x: number; y: number; bloom: string }[] }) {
+  const a = useActions();
+  return (
+    <>
+      <Title>吃音村のマップ</Title>
+      <VillageMap here={here} blooms={blooms} />
+      <Small>赤い丸が、いまあなたのいる場所です。</Small>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );

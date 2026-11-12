@@ -223,6 +223,13 @@ export function FarmScreen() {
 
   /* ---------- ヒントとAボタン ---------- */
   const openCafe = () => router.push("/cafe");
+  // 村全体のマップ。建物の中にいるときは、その建物の入り口を「いる場所」にする
+  const openMap = () => {
+    const sc = sceneRef.current;
+    const here = sc.area === "farm" ? sc.player : BUILDINGS.find((b) => b.id === sc.area)?.door ?? sc.player;
+    const blooms = sc.seeds.flatMap((x) => (x.bloom ? [{ x: x.x, y: x.y, bloom: x.bloom }] : []));
+    a.showMap({ x: here.x, y: here.y }, blooms);
+  };
   const action: Action = (() => {
     const [dx, dy] = DIRS[pos.dir];
     if (isRoom(pos.area)) {
@@ -388,6 +395,7 @@ export function FarmScreen() {
       <View style={[s.hud, { paddingTop: insets.top + 8, paddingLeft: insets.left + 12, paddingRight: insets.right + 12 }]}>
         <T style={s.villager} numberOfLines={1}>{`${farm.name}さん`}</T>
         <View style={s.hudActions}>
+          <HudBtn label="マップ" onPress={openMap} />
           <HudBtn label="郵便受け" badge={farm.unreadCount} onPress={a.showMailbox} />
           <HudBtn label="思い出帳" onPress={a.showBook} />
           <HudBtn label="設定" onPress={() => router.push("/settings")} />
