@@ -10,7 +10,8 @@ import { CAFE_HIDDEN_KEY } from "@/lib/cafe-api";
 import { DEV_HIDDEN_KEY } from "@/lib/dev-api";
 import { RESIDENT_HIDDEN_KEY } from "@/lib/resident-api";
 import { isConfigured, supabase } from "@/lib/supabase";
-import { TERMS_VERSION, cropById } from "@/lib/game";
+import { type Crop, TERMS_VERSION, cropById, randomCrop } from "@/lib/game";
+import { type MayorSeedState, mayorCropOf, mayorSeedKey } from "@/lib/mayor-seed";
 
 const HIDDEN_KEY = "kitsuon-hidden-seeds";
 const SEEN_THANKS_KEY = "kitsuon-seen-thanks";
@@ -37,6 +38,9 @@ type FarmState = {
   hideSeed: (id: string) => void;
   markThanksSeen: (id: string) => void;
   deleteAllData: () => Promise<void>;
+  mayorSeed: MayorSeedState; // 村長が蒔いた種（新しい村人の、初めての水やりの練習。端末に保存）
+  mayorCrop: CropDoc | null; // 村長の種に水やりして咲いた花（思い出帳に入れる）
+  waterMayorSeed: (x: number, y: number, letter: string) => Crop;
   justJoined: boolean; // 名前を登録して同意したばかり（村長のオリエンテーションを出す）
   clearJustJoined: () => void;
   refresh: () => void; // 自分で書き込んだあと、Realtime の通知を待たずに一覧を読み直す
@@ -149,6 +153,30 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [justJoined, setJustJoined] = useState(false);
   const clearJustJoined = useCallback(() => setJustJoined(false), []);
 
+  // 村長の種。村人ごとに端末へ保存する
+  const [mayorSeed, setMayorSeed] = useState<MayorSeedState>({ state: "none" });
+  const saveMayorSeed = useCallback((id: string, v: MayorSeedState) => {
+    setMayorSeed(v);
+    AsyncStorage.setItem(mayorSeedKey(id), JSON.stringify(v)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    AsyncStorage.getItem(mayorSeedKey(uid))
+      .then((v) => { if (alive && v) setMayorSeed(JSON.parse(v)); })
+      .catch(() => {});
+    return () => { alive = false; setMayorSeed({ state: "none" }); };
+  }, [uid]);
+  const waterMayorSeed = useCallback((x: number, y: number, letter: string) => {
+    const crop = randomCrop(`${x}_${y}`);
+    saveMayorSeed(uid, { state: "done", x, y, letter, bloom: crop.id, at: new Date().toISOString() });
+    return crop;
+  }, [uid, saveMayorSeed]);
+  const mayorCrop = useMemo(
+    () => (mayorSeed.state === "done" ? mayorCropOf(uid, name, mayorSeed) : null),
+    [mayorSeed, uid, name],
+  );
+
   const register = useCallback(async (n: string) => {
     await registerName(uid, n);
     newcomer.current = true;
@@ -166,16 +194,20 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setPhase("ready");
       throw e;
     }
-    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY]).catch(() => {});
+    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY, mayorSeedKey(current)]).catch(() => {});
     setHiddenSeeds(new Set());
     setSeenThanks(new Set());
   }, [uid]);
 
   const agree = useCallback(async () => {
     await agreeTerms(uid, name);
-    if (newcomer.current) { newcomer.current = false; setJustJoined(true); }
+    if (newcomer.current) {
+      newcomer.current = false;
+      saveMayorSeed(uid, { state: "pending" });
+      setJustJoined(true);
+    }
     setPhase("ready");
-  }, [uid, name]);
+  }, [uid, name, saveMayorSeed]);
 
   // 購読。最初に一覧を読み、Supabase Realtime で変化が届いたら読み直す（短い間隔はまとめる）
   useEffect(() => {
@@ -247,7 +279,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const value: FarmState = {
     phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
-    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, justJoined, clearJustJoined, refresh,
+    unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, mayorSeed, mayorCrop, waterMayorSeed, justJoined, clearJustJoined, refresh,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
 }

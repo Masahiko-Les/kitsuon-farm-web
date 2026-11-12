@@ -15,6 +15,7 @@ import {
 import { useActions } from "@/modals";
 import { isConfigured } from "@/lib/supabase";
 import { useFarm } from "@/state/farm";
+import { MAYOR_SEED_SPOTS, MAYOR_UID, mayorSeedOf } from "@/lib/mayor-seed";
 import { useVillagers } from "@/state/village";
 import { C } from "@/theme";
 
@@ -80,16 +81,28 @@ export function FarmScreen() {
   // 立ち位置と向き。ヒントとAボタンの表示に使う
   const [pos, setPos] = useState({ ...START, dir: "down" as Dir, area: "farm" as Area });
 
+  /* ---------- 村長が蒔いた種（新しい村人の、初めての水やりの練習。この人の画面にだけある） ---------- */
+  const mayorSeed = useMemo((): Seed | null => {
+    const m = farm.mayorSeed;
+    const taken = (x: number, y: number) => farm.publicSeeds.has(keyOf(x, y)) || farm.mySeeds.has(keyOf(x, y));
+    if (m.state === "done") return taken(m.x, m.y) ? null : mayorSeedOf(m.x, m.y, m.bloom);
+    if (m.state !== "pending") return null;
+    const spot = MAYOR_SEED_SPOTS.find((p) => !taken(p.x, p.y));
+    return spot ? mayorSeedOf(spot.x, spot.y, null) : null;
+  }, [farm.mayorSeed, farm.publicSeeds, farm.mySeeds]);
+
   /* ---------- 種の判定 ---------- */
   const seedAt = useCallback((x: number, y: number): Seed | null => {
+    if (mayorSeed && mayorSeed.x === x && mayorSeed.y === y) return mayorSeed;
     const k = keyOf(x, y);
     if (farm.mySeeds.has(k)) return farm.mySeeds.get(k)!;
     if (farm.hiddenSeeds.has(k)) return null;
     return farm.publicSeeds.get(k) ?? null;
-  }, [farm.mySeeds, farm.publicSeeds, farm.hiddenSeeds]);
+  }, [farm.mySeeds, farm.publicSeeds, farm.hiddenSeeds, mayorSeed]);
 
   const kindOf = useCallback((seed: Seed | null): SeedKind => {
     if (!seed) return null;
+    if (seed.ownerUid === MAYOR_UID) return seed.bloom ? "watered" : "open";
     if (seed.ownerUid === farm.uid) return seed.status === "review" ? "mine-review" : "mine";
     if ((seed.waterers || []).includes(farm.uid)) return "watered";
     if ((seed.waterCount || 0) >= MAX_WATERERS) return "full";
@@ -97,20 +110,22 @@ export function FarmScreen() {
   }, [farm.uid]);
 
   const nearOpenSeed = useMemo(() => {
+    if (mayorSeed && !mayorSeed.bloom && Math.abs(mayorSeed.x - pos.x) + Math.abs(mayorSeed.y - pos.y) <= 2) return true;
     for (const s of farm.publicSeeds.values()) {
       if (kindOf(s) !== "open" || farm.hiddenSeeds.has(s.id)) continue;
       if (Math.abs(s.x - pos.x) + Math.abs(s.y - pos.y) <= 2) return true;
     }
     return false;
-  }, [farm.publicSeeds, farm.hiddenSeeds, kindOf, pos.x, pos.y]);
+  }, [farm.publicSeeds, farm.hiddenSeeds, kindOf, pos.x, pos.y, mayorSeed]);
 
   /* ---------- 描画ループに渡すもの ---------- */
   const visibleSeeds = useMemo(() => {
     const m = new Map<string, Seed>();
     for (const s of farm.publicSeeds.values()) if (!farm.hiddenSeeds.has(s.id)) m.set(s.id, s);
     for (const s of farm.mySeeds.values()) m.set(s.id, s);
+    if (mayorSeed) m.set(mayorSeed.id, mayorSeed);
     return [...m.values()];
-  }, [farm.publicSeeds, farm.mySeeds, farm.hiddenSeeds]);
+  }, [farm.publicSeeds, farm.mySeeds, farm.hiddenSeeds, mayorSeed]);
   const [others] = useState(() => new Map<string, Other>());
   const sceneRef = useRef<Scene>({
     area: "farm",
@@ -333,6 +348,11 @@ export function FarmScreen() {
     const seedName = desert ? "挑戦の種" : "種";
     // 「ありがとう」で花が咲いた種
     const bloom = seed?.bloom ? `${cropById(seed.bloom).name}が咲いている。` : "";
+    if (seed && seed.ownerUid === MAYOR_UID) {
+      return seed.bloom
+        ? { label: "見る", hint: `${bloom}村長の種に水やりして咲いた花だ。`, run: () => a.showMayorMemory() }
+        : { label: "水やり", hint: "土の中に種が埋まっている！　村長が蒔いた種のようだ。", run: () => a.showMayorSeed(seed.x, seed.y) };
+    }
     if (seed && (kind === "mine" || kind === "mine-review")) {
       return { label: "見る", hint: `${bloom}あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
     }
