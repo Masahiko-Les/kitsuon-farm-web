@@ -135,7 +135,7 @@ export const BUILDINGS: Building[] = [
   { id: "house", name: "家", x: 20, y: 5, w: 2, h: 2, door: { x: 20, y: 6 }, enterable: true },
   { id: "cafe", name: "カフェ", x: 8, y: 11, w: 3, h: 2, door: { x: 9, y: 12 }, enterable: true },
   { id: "hall", name: "村役場", x: 15, y: 5, w: 4, h: 3, door: { x: 16, y: 7 }, enterable: true }, // 焚き火の広場の真北
-  { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: false },
+  { id: "library", name: "図書館", x: 21, y: 20, w: 3, h: 2, door: { x: 22, y: 21 }, enterable: true }, // 吃音の本と心の本、司書、ノート
   { id: "harbor", name: "港の待合所", x: 10, y: 20, w: 2, h: 2, door: { x: 10, y: 21 }, enterable: false },
   { id: "radio", name: "ラジオ局", x: 5, y: 1, w: 2, h: 2, door: { x: 5, y: 2 }, enterable: false }, // 北西の丘の上。まっすぐな石段で下りる
   { id: "dev", name: "開発局", x: 32, y: 3, w: 3, h: 2, door: { x: 33, y: 4 }, enterable: true }, // 砂漠の中。村人のアイデアを黒板に並べる
@@ -146,7 +146,7 @@ export const buildingAt = (x: number, y: number) =>
   BUILDINGS.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
 
 // いま村人がいる場所。農場か、建物の中（建物の id と同じ）
-export type RoomId = "house" | "cafe" | "hall" | "dev";
+export type RoomId = "house" | "cafe" | "hall" | "dev" | "library";
 export type Area = "farm" | RoomId;
 
 // 建物の中。どの部屋も #=壁 .=床 E=出入り口（下へ歩くと外に出る）
@@ -225,7 +225,33 @@ export const ROOMS: Record<RoomId, Room> = {
     entry: { x: 5, y: 6 },
     walkable: new Set([".", "E"]),
   },
+  // 図書館（広い。カメラが縦にも追いかける）。A=吃音の本の棚（左） Z=心の本の棚（右）。どちらも2マスで1つの棚
+  // J=司書（めがねのヒツジ） C=カウンター T=閲覧テーブル（ノートが置いてある） h=椅子 P=鉢植え
+  library: {
+    map: [
+      "####################",
+      "#..................#",
+      "#.AA.AA......ZZ.ZZ.#",
+      "#..................#",
+      "#.AA.AA......ZZ.ZZ.#",
+      "#........J.........#",
+      "#.AA.AA.CCCC.ZZ.ZZ.#",
+      "#..................#",
+      "#.AA.AA......ZZ.ZZ.#",
+      "#..................#",
+      "#.AA.AA......ZZ.ZZ.#",
+      "#..................#",
+      "#......hTTTTh......#",
+      "#..................#",
+      "#P................P#",
+      "#########E##########",
+    ],
+    entry: { x: 9, y: 14 },
+    walkable: new Set([".", "E"]),
+  },
 };
+// 図書館の椅子に座って本を読んでいる村人
+export const LIBRARY_GUESTS: Record<string, string> = { "12_12": "rabbit" };
 // 村役場の中に、ベンチで順番を待っている村人
 export const HALL_GUESTS: Record<string, string> = { "4_5": "sheep", "10_7": "rabbit" };
 

@@ -17,6 +17,7 @@ const FALLBACK: Record<string, Href> = {
   residents: "/",
   "resident-view": "/residents",
   "resident-admin": "/settings",
+  "library-admin": "/settings",
   help: "/settings",
   terms: "/settings",
   contact: "/settings",

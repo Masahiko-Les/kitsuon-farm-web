@@ -7,7 +7,7 @@ import { useSharedValue } from "react-native-reanimated";
 
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, COLS, type Dir, MAX_WATERERS, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
+  type Area, BUILDINGS, type Building, CAFE_GUESTS, HALL_GUESTS, LIBRARY_GUESTS, COLS, type Dir, MAX_WATERERS, HARBOR, ON_SEA, ROOMS, ROWS, type RoomId, TILE,
   VIEW_TILES_ACROSS, cropById, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { drawAnimal } from "./animals";
@@ -1097,13 +1097,123 @@ function devArt(): RoomArt {
   return { base, rows: rowArt };
 }
 
+/* ---------- 図書館の中 ---------- */
+function drawLibraryFloor(X: number, Y: number, tx: number, ty: number) {
+  // 板張りの床。通路には緑のじゅうたん
+  rect(X, Y, 16, 16, "#b98e62");
+  rect(X, Y + ((tx + ty) % 2 ? 7 : 15), 16, 1, "#a77c52");
+  if (tx >= 7 && tx <= 12) { rect(X, Y, 16, 16, "#5f8a5a"); rect(X, Y, 16, 1, "#557d50"); }
+}
+function drawLibraryWall(X: number, Y: number, tx: number) {
+  rect(X, Y, 16, 16, "#e9dcc2");
+  rect(X, Y, 16, 3, "#5a3e2b");
+  rect(X, Y + 11, 16, 5, "#7a5235");
+  rect(X, Y + 11, 16, 1, "#9a6c45");
+  if (tx % 4 === 2) { rect(X + 3, Y + 4, 10, 6, "#a8d4ec"); rect(X + 8, Y + 4, 1, 6, "#e9dcc2"); } // 縦長の窓
+}
+// 部屋の中に立っている本棚（2マスぶん）。warm で心の本の棚（あたたかい色の背表紙）
+function drawLibraryShelf(X: number, Y: number, warm: boolean) {
+  rect(X + 1, Y - 5, 30, 20, "#6b4a2e");
+  rect(X + 2, Y - 4, 28, 18, "#4f3520");
+  const colors = warm
+    ? ["#e2c15a", "#c4473a", "#e88a5a", "#f6efd9", "#d9738a", "#8a5aa8"]
+    : ["#3f6fb0", "#4f8f3a", "#5aa0a8", "#f6efd9", "#2f5a46", "#7a8fc4"];
+  for (let row = 0; row < 3; row++) {
+    const sy = Y - 4 + row * 6;
+    for (let i = 0; i < 9; i++) {
+      const h = 4 + ((i + row) % 2);
+      if ((i * 3 + row) % 7 === 6) continue; // ところどころ抜けている
+      rect(X + 3 + i * 3, sy + 5 - h, 2, h, colors[(i * 2 + row * 3) % colors.length]);
+    }
+    rect(X + 2, sy + 5, 28, 1, "#6b4a2e");
+  }
+  rect(X + 12, Y - 7, 8, 3, warm ? "#f2d04b" : "#a8d4ec"); // 棚の札
+}
+function drawLibraryCounter(X: number, Y: number, tx: number) {
+  rect(X, Y + 1, 16, 5, "#c89060");
+  rect(X, Y + 1, 16, 1, "#e0ad78");
+  rect(X, Y + 6, 16, 10, "#7a5235");
+  rect(X + 2, Y + 8, 12, 6, "#6b4a2e");
+  if (tx === 8) { rect(X + 4, Y - 1, 8, 3, "#3f6fb0"); rect(X + 5, Y - 3, 7, 2, "#c4473a"); } // 返された本
+  if (tx === 11) { rect(X + 6, Y - 3, 1, 5, "#455a64"); rect(X + 4, Y - 5, 5, 3, "#f2d04b"); } // スタンドの明かり
+}
+// 司書（めがねのヒツジ）
+function drawLibrarian(X: number, Y: number) {
+  drawAnimal(rect, "sheep", X, Y);
+  rect(X + 4, Y + 5, 3, 3, "#3a2e24"); rect(X + 5, Y + 6, 1, 1, "#f4f1ea");
+  rect(X + 9, Y + 5, 3, 3, "#3a2e24"); rect(X + 10, Y + 6, 1, 1, "#f4f1ea");
+  rect(X + 7, Y + 6, 2, 1, "#3a2e24");
+}
+// 閲覧テーブル（4マスぶん）。まんなかにノートが開いて置いてある
+function drawReadingTable(X: number, Y: number) {
+  rect(X + 3, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 59, Y + 10, 2, 5, "#5a3e2b");
+  rect(X + 1, Y + 2, 62, 9, "#a0703f");
+  rect(X + 1, Y + 2, 62, 1, "#b8854f");
+  rect(X + 1, Y + 10, 62, 1, "#7a5235");
+  // ノート
+  rect(X + 24, Y + 3, 16, 7, "#f6efd9");
+  rect(X + 31, Y + 3, 1, 7, "#d6c49e");
+  for (const ly of [5, 7]) { rect(X + 26, Y + ly, 4, 1, "#9b9384"); rect(X + 34, Y + ly, 4, 1, "#9b9384"); }
+  rect(X + 41, Y + 4, 1, 5, "#3a2e24"); // えんぴつ
+  rect(X + 6, Y + 4, 8, 5, "#4f8f3a"); // 置いてある本
+  rect(X + 50, Y + 4, 8, 5, "#c4473a");
+}
+function libraryArt(): RoomArt {
+  const room = ROOMS.library.map;
+  const cols = room[0].length, rows = room.length;
+  const at = (x: number, y: number) => roomTileAt("library", x, y);
+  const bounds = Skia.XYWHRect(0, -TILE, cols * TILE, (rows + 1) * TILE);
+  const base = createPicture((canvas) => {
+    cv = canvas;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const X = x * TILE, Y = y * TILE;
+        const c = at(x, y);
+        if (c === "#") {
+          if (y === 0 && x > 0 && x < cols - 1) drawLibraryWall(X, Y, x);
+          else rect(X, Y, 16, 16, "#3a2a1e");
+        } else {
+          drawLibraryFloor(X, Y, x, y);
+          if (c === "E") drawDoorMat(X, Y);
+        }
+      }
+    }
+  }, bounds);
+  const rowArt = Array.from({ length: rows }, (_, y) => createPicture((canvas) => {
+    cv = canvas;
+    for (let x = 0; x < cols; x++) {
+      const X = x * TILE, Y = y * TILE;
+      const c = at(x, y);
+      const first = at(x - 1, y) !== c; // 何マスかにまたがる家具は、左のマスを起点に描く
+      if (c === "A" && first) drawLibraryShelf(X, Y, false);
+      if (c === "Z" && first) drawLibraryShelf(X, Y, true);
+      if (c === "J") drawLibrarian(X, Y + 3);
+      if (c === "C") drawLibraryCounter(X, Y, x);
+      if (c === "T" && first) drawReadingTable(X, Y);
+      if (c === "P") drawPottedPlant(X, Y);
+      if (c === "h") {
+        drawChair(X, Y);
+        const guest = LIBRARY_GUESTS[keyOf(x, y)];
+        if (guest) { drawAnimal(rect, guest, X, Y - 2); rect(X + 4, Y + 11, 8, 4, "#3f6fb0"); } // 本を広げている
+      }
+    }
+    if (y === rows - 1) rect(0, 0, cols * TILE, rows * TILE, "rgba(255,210,140,0.06)");
+  }, bounds));
+  return { base, rows: rowArt };
+}
+
 // 部屋は画面より小さいので、村人を置く高さに部屋の真ん中を合わせる
 function roomCamera(id: RoomId, p: Player, t: number, v: ViewSize) {
-  const { fx } = playerPos(p, t);
+  const { fx, fy } = playerPos(p, t);
   const room = ROOMS[id].map;
   const RW = room[0].length * TILE, RH = room.length * TILE;
   const x = RW <= v.w ? (RW - v.w) / 2 : Math.min(Math.max(fx * TILE + TILE / 2 - v.w / 2, 0), RW - v.w);
-  return { x: Math.round(x), y: Math.round(RH / 2 - v.h * v.focusY) };
+  // 画面より高い部屋（図書館）は、縦も村人を追いかける
+  const y = RH + TILE <= v.h
+    ? RH / 2 - v.h * v.focusY
+    : Math.min(Math.max(fy * TILE + TILE / 2 - v.h * v.focusY, -TILE), RH - v.h + TILE);
+  return { x: Math.round(x), y: Math.round(y) };
 }
 
 function roomFrame(id: RoomId, art: RoomArt, scene: Scene, t: number, v: ViewSize): SkPicture {
@@ -1236,7 +1346,7 @@ export function FarmMap({ scene, paused, focusY = 0.5 }: { scene: RefObject<Scen
   const [size, setSize] = useState({ width: 0, height: 0 });
   const base = useMemo(() => staticLayer(), []);
   const rooms = useMemo<Record<RoomId, RoomArt>>(
-    () => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt(), hall: hallArt(), dev: devArt() }),
+    () => ({ house: { base: houseLayer(), rows: [] }, cafe: cafeArt(), hall: hallArt(), dev: devArt(), library: libraryArt() }),
     [],
   );
   const picture = useSharedValue<SkPicture>(base);

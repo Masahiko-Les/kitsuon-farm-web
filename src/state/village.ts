@@ -1,6 +1,6 @@
 // ほかの村人（同じ時間に村を歩いている人）の姿。Supabase Realtime の Presence と Broadcast を使い、データベースには何も残さない。
 // ・送るのは、場所（area・x・y・向き）だけ。uid と名前は送らない（開くたびに作る使い捨ての ID で区別する）
-// ・場所（村のマップ・カフェ・村役場）ごとにチャンネルを分け、1つの村は VILLAGE_CAP 人まで。いっぱいなら次の村に入る
+// ・場所（村のマップ・カフェ・村役場・開発局・図書館）ごとにチャンネルを分け、1つの村は VILLAGE_CAP 人まで。いっぱいなら次の村に入る
 // ・家の中と、タブが裏に回っているあいだは、どのチャンネルにも入らない
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef } from "react";
@@ -15,7 +15,7 @@ const SETTLE_MS = 800; // 立ち止まってから、いまの場所を Presence
 const MAX_OTHERS = 30; // 念のため、画面に出す人数の上限
 
 type Spot = { area: Area; x: number; y: number; dir: Dir };
-type Shared = "farm" | "cafe" | "hall";
+type Shared = "farm" | "cafe" | "hall" | "dev" | "library";
 
 const shared = (a: Area): a is Shared => a !== "house";
 const isDir = (d: unknown): d is Dir => typeof d === "string" && d in DIRS;

@@ -46,6 +46,7 @@ export default function Settings() {
           <Row label="運営：カフェの言葉の確認" onPress={() => router.push("/cafe-admin")} />
           <Row label="運営：開発局のアイデアの確認" onPress={() => router.push("/dev-admin")} />
           <Row label="運営：住民票の確認" onPress={() => router.push("/resident-admin")} />
+          <Row label="運営：図書館の確認" onPress={() => router.push("/library-admin")} />
         </>
       ) : null}
       <View style={{ height: 24 }} />

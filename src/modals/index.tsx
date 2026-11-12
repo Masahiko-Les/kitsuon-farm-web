@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
 import { MayorPortrait, VillageMap, addEffect } from "@/components/farm-map";
@@ -22,6 +22,10 @@ import { MAYOR_UID, type MayorKind, mayorSeedName, mayorSeedText } from "@/lib/m
 import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
 import { loadResidentCount } from "@/lib/resident-api";
 import { DEV_HIDDEN_KEY, type DevIdea, addIdea, loadBoard, reportIdea } from "@/lib/dev-api";
+import {
+  AUTHOR_MAX, type Book, LIBRARY_HIDDEN_KEY, type LibraryTarget, type Note, type Review, SHELF_NAME, type Shelf, TITLE_MAX,
+  addNote, addReview, builtinBooks, loadMyRequests, loadNotes, loadReviews, loadShelf, reportEntry, requestBook,
+} from "@/lib/library";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
 import { C, F } from "@/theme";
@@ -66,6 +70,12 @@ export function useActions() {
     showMayorMemory: (kind: MayorKind) => modal.open(<MayorMemory kind={kind} />),
     showDevStaff: () => modal.open(<DevStaffModal />),
     showBlackboard: () => modal.open(<BlackboardModal />),
+    showShelf: (shelf: Shelf) => modal.open(<ShelfModal shelf={shelf} />),
+    showLibraryBook: (book: Book) => modal.open(<LibraryBookModal book={book} />),
+    showReviewWrite: (book: Book, initial = "") => modal.open(<ReviewWriteModal book={book} initial={initial} />),
+    showLibrarian: () => modal.open(<LibrarianModal />),
+    showNotebook: () => modal.open(<NotebookModal />),
+    showNoteWrite: () => modal.open(<NoteWriteModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
     showSupport: (kind: SupportKind, onBack?: () => void) => modal.open(<SupportModal kind={kind} onBack={onBack} />),
   };
@@ -903,6 +913,344 @@ function BlackboardModal() {
   );
 }
 
+/* =========================================================
+   図書館：本棚・感想・司書・ノート（src/lib/library.ts）
+   ========================================================= */
+// 通報して隠した感想・ノート（端末に保存）
+function useLibraryHidden() {
+  const { uid } = useFarm();
+  const toast = useToast();
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(LIBRARY_HIDDEN_KEY)
+      .then((h) => { if (alive && h) setHidden(new Set(JSON.parse(h) as string[])); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const report = async (type: LibraryTarget, id: string) => {
+    const what = type === "libraryReview" ? "この感想" : "このノート";
+    if (!(await confirm(`${what}を通報しますか？　あなたの画面からは見えなくなり、運営が確認します。`, "通報する", true))) return;
+    try { await reportEntry(uid, type, id); } catch (e) { console.error(e); }
+    const next = new Set(hidden).add(id);
+    setHidden(next);
+    AsyncStorage.setItem(LIBRARY_HIDDEN_KEY, JSON.stringify([...next])).catch(() => {});
+    toast("通報しました。運営が確認します。");
+  };
+  return { hidden, report };
+}
+
+// 書いた人の欄：自分のものは「あなたの〜」、ほかの村人のものは日付と通報
+function EntryMeta({ mine, status, createdAt, what, onReport }: {
+  mine: boolean; status: string; createdAt?: string | null; what: string; onReport: () => void;
+}) {
+  return (
+    <View style={s.entryMeta}>
+      <T style={s.entrySub}>{mine ? (status === "ok" ? `あなたの${what}` : `あなたの${what}（運営が確認中）`) : dateText(createdAt)}</T>
+      {!mine ? <Pressable accessibilityRole="button" onPress={onReport} hitSlop={8}><T style={s.entryLink}>通報</T></Pressable> : null}
+    </View>
+  );
+}
+
+function ShelfModal({ shelf }: { shelf: Shelf }) {
+  const a = useActions();
+  const [books, setBooks] = useState<Book[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadShelf(shelf)
+      .then((list) => { if (alive) setBooks(list); })
+      .catch((e) => { console.error(e); if (alive) setBooks(builtinBooks(shelf)); });
+    return () => { alive = false; };
+  }, [shelf]);
+  return (
+    <>
+      <Title>{SHELF_NAME[shelf]}</Title>
+      <Body>{shelf === "stutter"
+        ? "吃音について書かれた本が並んでいる。本を選ぶと、村人が書き残した感想を読んだり、自分の感想を書いたりできる。"
+        : "悲しみをそっと癒したり、勇気をくれたりする本が並んでいる。"}</Body>
+      {books === null ? <Small>本を出しています…</Small> : null}
+      <View style={s.list}>
+        {(books ?? []).map((b) => (
+          <Pressable key={b.id} accessibilityRole="button" onPress={() => a.showLibraryBook(b)} style={s.listItem}>
+            <View style={[s.spine, { backgroundColor: shelf === "stutter" ? "#3f6fb0" : "#c4473a" }]} />
+            <View style={s.listMain}>
+              <T style={s.listName}>{`『${b.title}』`}</T>
+              <T style={s.listSub}>{[b.author, b.requested ? "村人の希望で並んだ本" : ""].filter(Boolean).join("　")}</T>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+      <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+function LibraryBookModal({ book }: { book: Book }) {
+  const { uid } = useFarm();
+  const a = useActions();
+  const { hidden, report } = useLibraryHidden();
+  const withReviews = book.shelf === "stutter";
+  const [reviews, setReviews] = useState<Review[] | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!withReviews) return;
+    let alive = true;
+    loadReviews(uid, book.id)
+      .then((list) => { if (alive) setReviews(list); })
+      .catch((e) => { console.error(e); if (alive) { setErr("感想を読めませんでした。"); setReviews([]); } });
+    return () => { alive = false; };
+  }, [uid, book.id, withReviews]);
+  const shown = (reviews ?? []).filter((r) => !hidden.has(r.id));
+  return (
+    <>
+      <Title>{`『${book.title}』`}</Title>
+      {book.author ? <Small>{book.author}</Small> : null}
+      {book.requested ? (
+        book.about ? (<><SectionLabel>この本を希望した村人のおすすめ</SectionLabel><Paper text={book.about} minLines={2} /></>) : <Body>村人の希望で並んだ本だ。</Body>
+      ) : <Body>{book.about}</Body>}
+      {withReviews ? (
+        <>
+          <SectionLabel>村人の感想</SectionLabel>
+          {reviews === null ? <Small>読み込んでいます…</Small> : null}
+          {err ? <ErrorText>{err}</ErrorText> : null}
+          {reviews !== null && !err && shown.length === 0 ? <Small>まだ感想はない。最初の感想を書き残してみよう。</Small> : null}
+          {shown.map((r) => (
+            <View key={r.id} style={s.entry}>
+              <Paper text={r.text} minLines={2} />
+              <EntryMeta mine={r.uid === uid} status={r.status} createdAt={r.createdAt} what="感想" onReport={() => report("libraryReview", r.id)} />
+            </View>
+          ))}
+        </>
+      ) : null}
+      <Actions>
+        <Btn kind="quiet" label="棚にもどる" onPress={() => a.showShelf(book.shelf)} />
+        {withReviews ? <Btn label="感想を書く" onPress={() => a.showReviewWrite(book)} /> : <Btn label="とじる" onPress={a.close} />}
+      </Actions>
+    </>
+  );
+}
+
+function ReviewWriteModal({ book, initial }: { book: Book; initial: string }) {
+  const { uid } = useFarm();
+  const a = useActions();
+  const toast = useToast();
+  const text = useRef(initial);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const res = checkText(text.current, 0, null);
+    if (res.error) { setErr(res.error); return; }
+    setBusy(true);
+    setErr("");
+    try {
+      await addReview(uid, book.id, text.current.trim(), res.crisis ? "review" : "ok");
+      if (res.crisis) { a.showSupport("review"); return; }
+      toast("感想を書き残しました。");
+      a.showLibraryBook(book);
+    } catch (e) {
+      console.error(e);
+      setBusy(false);
+      setErr("書き残せませんでした。通信を確認して、もう一度押してください。");
+    }
+  };
+  return (
+    <>
+      <Title>{`『${book.title}』の感想`}</Title>
+      <PaperInput placeholder="読んで感じたことを、300文字以内で書いてみよう" initial={initial} maxLines={null} onChangeText={(t) => { text.current = t; }} />
+      <Small>感想は名前を出さずに、この本の感想として並びます。</Small>
+      <ErrorText>{err}</ErrorText>
+      <Actions>
+        <Btn kind="quiet" label="やめる" onPress={() => a.showLibraryBook(book)} />
+        <Btn label="書き残す" onPress={submit} disabled={busy} />
+      </Actions>
+    </>
+  );
+}
+
+// 司書（ヒツジ）。並べたい本の希望を聞いて、運営（村長）が承認すると棚に並ぶ
+function LibrarianModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const [done, setDone] = useState(false);
+  const [shelf, setShelf] = useState<Shelf>("stutter");
+  const title = useRef("");
+  const author = useRef("");
+  const reason = useRef("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [mine, setMine] = useState<Book[]>([]);
+  useEffect(() => {
+    if (!uid || uid === "offline") return;
+    let alive = true;
+    loadMyRequests(uid).then((l) => { if (alive) setMine(l); }).catch((e) => console.error(e));
+    return () => { alive = false; };
+  }, [uid, done]);
+
+  const submit = async () => {
+    const t = title.current.trim(), au = author.current.trim(), r = reason.current.trim();
+    if (!t) { setErr("本の名前を書いてください。"); return; }
+    if ([...t].length > TITLE_MAX) { setErr(`本の名前は${TITLE_MAX}文字以内にしてください。`); return; }
+    if ([...au].length > AUTHOR_MAX) { setErr(`書いた人の名前は${AUTHOR_MAX}文字以内にしてください。`); return; }
+    const checks = [t, au, r].filter(Boolean).map((x) => checkText(x, 0, null));
+    const bad = checks.find((c) => c.error);
+    if (bad) { setErr(bad.error!); return; }
+    const crisis = checks.some((c) => c.crisis);
+    setBusy(true);
+    setErr("");
+    try {
+      await requestBook(uid, { shelf, title: t, author: au, reason: r }, crisis ? "review" : "pending");
+      if (crisis) { a.showSupport("request"); return; }
+      setDone(true);
+    } catch (e) {
+      console.error(e);
+      setBusy(false);
+      setErr("伝えられませんでした。通信を確認して、もう一度押してください。");
+    }
+  };
+
+  const pending = mine.length > 0
+    ? <Small>{`村長と相談中の本：${mine.map((b) => `『${b.title}』`).join("、")}`}</Small>
+    : null;
+  if (done) {
+    return (
+      <>
+        <Title>図書館のカウンター</Title>
+        <Body>司書「ありがとうございます。村長と相談してみますね。」</Body>
+        <Small>村長（運営）が承認すると、本棚に並びます。</Small>
+        {pending}
+        <Actions><Btn label="とじる" onPress={a.close} /></Actions>
+      </>
+    );
+  }
+  return (
+    <>
+      <Title>図書館のカウンター</Title>
+      <Body>司書「ようこそ、吃音村の図書館へ。何か並べたい本のご希望はありますか？」</Body>
+      <SectionLabel>本の名前</SectionLabel>
+      <TextInput
+        placeholder="例：きよしこ"
+        placeholderTextColor="#9b9384"
+        accessibilityLabel="本の名前"
+        onChangeText={(v) => { title.current = v; }}
+        style={s.field}
+      />
+      <SectionLabel>書いた人（わかれば）</SectionLabel>
+      <TextInput
+        placeholder="例：重松清"
+        placeholderTextColor="#9b9384"
+        accessibilityLabel="書いた人"
+        onChangeText={(v) => { author.current = v; }}
+        style={s.field}
+      />
+      <SectionLabel>並べる棚</SectionLabel>
+      <View style={s.shelfPick}>
+        {(["stutter", "heart"] as const).map((k) => (
+          <Pressable
+            key={k}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: shelf === k }}
+            onPress={() => setShelf(k)}
+            style={[s.shelfBtn, shelf === k && s.shelfBtnOn]}
+          >
+            <T style={s.shelfBtnText}>{k === "stutter" ? "吃音の本（左）" : "心の本（右）"}</T>
+          </Pressable>
+        ))}
+      </View>
+      <SectionLabel>おすすめしたい理由（任意）</SectionLabel>
+      <PaperInput placeholder="この本のどんなところが好きか、300文字以内で" maxLines={null} onChangeText={(v) => { reason.current = v; }} />
+      <Small>理由は、本が並んだときに名前を出さずに紹介として載ります。</Small>
+      {pending}
+      <ErrorText>{err}</ErrorText>
+      <Actions>
+        <Btn kind="quiet" label="今はない" onPress={a.close} />
+        <Btn label="お願いする" onPress={submit} disabled={busy} />
+      </Actions>
+    </>
+  );
+}
+
+// 閲覧テーブルのノート。心に残った文章と、そのときの心境や状況
+function NotebookModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const { hidden, report } = useLibraryHidden();
+  const [notes, setNotes] = useState<Note[] | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let alive = true;
+    loadNotes(uid)
+      .then((l) => { if (alive) setNotes(l); })
+      .catch((e) => { console.error(e); if (alive) { setErr("ノートを読めませんでした。"); setNotes([]); } });
+    return () => { alive = false; };
+  }, [uid]);
+  const shown = (notes ?? []).filter((n) => !hidden.has(n.id));
+  return (
+    <>
+      <Title>閲覧テーブルのノート</Title>
+      <Body>心に残った文章と、そのときの気持ちや状況が、村人の手で書き残されている。</Body>
+      {notes === null ? <Small>ページをめくっています…</Small> : null}
+      {err ? <ErrorText>{err}</ErrorText> : null}
+      {notes !== null && !err && shown.length === 0 ? <Small>まだ何も書かれていない。最初のページに書いてみよう。</Small> : null}
+      {shown.map((n) => (
+        <View key={n.id} style={s.entry}>
+          <SectionLabel>心に残った文章</SectionLabel>
+          <Paper text={n.quote} minLines={1} />
+          {n.feeling ? (<><SectionLabel>そのときの心境や状況</SectionLabel><Paper text={n.feeling} minLines={1} /></>) : null}
+          <EntryMeta mine={n.uid === uid} status={n.status} createdAt={n.createdAt} what="ページ" onReport={() => report("libraryNote", n.id)} />
+        </View>
+      ))}
+      <Actions>
+        <Btn kind="quiet" label="とじる" onPress={a.close} />
+        <Btn label="ノートに書く" onPress={a.showNoteWrite} />
+      </Actions>
+    </>
+  );
+}
+
+function NoteWriteModal() {
+  const { uid } = useFarm();
+  const a = useActions();
+  const toast = useToast();
+  const quote = useRef("");
+  const feeling = useRef("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const q = checkText(quote.current, 0, null);
+    if (q.error) { setErr(quote.current.trim() ? q.error : "心に残った文章を書いてください。"); return; }
+    const f = feeling.current.trim() ? checkText(feeling.current, 0, null) : { crisis: false };
+    if ("error" in f && f.error) { setErr(f.error); return; }
+    const crisis = q.crisis || f.crisis;
+    setBusy(true);
+    setErr("");
+    try {
+      await addNote(uid, quote.current.trim(), feeling.current.trim(), crisis ? "review" : "ok");
+      if (crisis) { a.showSupport("note"); return; }
+      toast("ノートに書き残しました。");
+      a.showNotebook();
+    } catch (e) {
+      console.error(e);
+      setBusy(false);
+      setErr("書き残せませんでした。通信を確認して、もう一度押してください。");
+    }
+  };
+  return (
+    <>
+      <Title>ノートに書く</Title>
+      <SectionLabel>心に残った文章</SectionLabel>
+      <PaperInput placeholder="本や、誰かの言葉で、心に残った文章" maxLines={null} onChangeText={(t) => { quote.current = t; }} />
+      <SectionLabel>そのときの心境や状況（任意）</SectionLabel>
+      <PaperInput placeholder="その文章に出会ったときの気持ちや、そのころの様子" maxLines={null} onChangeText={(t) => { feeling.current = t; }} />
+      <Small>ノートには名前を出さずに書き残されます。</Small>
+      <ErrorText>{err}</ErrorText>
+      <Actions>
+        <Btn kind="quiet" label="やめる" onPress={a.showNotebook} />
+        <Btn label="書き残す" onPress={submit} disabled={busy} />
+      </Actions>
+    </>
+  );
+}
+
 function MemoryModal({ crop: c }: { crop: CropDoc }) {
   const { uid } = useFarm();
   const a = useActions();
@@ -952,7 +1300,7 @@ export function SupportList() {
 }
 
 // seed=種 letter=手紙 cafe=カフェの言葉（保存した） unsaved=カフェの言葉（保存できなかった）
-type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea" | "resident" | "residentPrivate";
+type SupportKind = "seed" | "letter" | "cafe" | "unsaved" | "idea" | "resident" | "residentPrivate" | "review" | "note" | "request";
 const SUPPORT_LEAD: Record<SupportKind, string> = {
   seed: "とてもつらい気持ちが書かれていたので、この種はいったん非公開にして、運営が確認します。",
   letter: "とてもつらい気持ちが書かれていたので、この手紙は送らずにいったん止めました。",
@@ -961,6 +1309,9 @@ const SUPPORT_LEAD: Record<SupportKind, string> = {
   idea: "とてもつらい気持ちが書かれていたので、このアイデアは黒板には出さず、運営が確認します。",
   resident: "とてもつらい気持ちが書かれていたので、この住民票はいったんほかの村人には見せず、運営が確認します。",
   residentPrivate: "とてもつらい気持ちが書かれていました。この住民票は、あなただけが読めます。",
+  review: "とてもつらい気持ちが書かれていたので、この感想はほかの村人には見せず、運営が確認します。",
+  note: "とてもつらい気持ちが書かれていたので、このノートはほかの村人には見せず、運営が確認します。",
+  request: "とてもつらい気持ちが書かれていたので、この本の希望は、運営が確認します。",
 };
 
 // 種を蒔くページから開く相談窓口
@@ -1044,6 +1395,19 @@ const s = StyleSheet.create({
   chalk: { color: "#f4f7f2", fontFamily: F.letter, fontSize: 15, lineHeight: 22 },
   chalkSub: { color: "#b9cbbf", fontSize: 12 },
   chalkLink: { color: "#f2d04b", fontSize: 12, textDecorationLine: "underline" },
+  spine: { width: 6, alignSelf: "stretch", borderRadius: 2 },
+  entry: { marginBottom: 12 },
+  entryMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  entrySub: { fontSize: 12, color: C.sub },
+  entryLink: { fontSize: 12, color: C.error, textDecorationLine: "underline" },
+  field: {
+    backgroundColor: C.paper, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8,
+    fontFamily: F.letter, fontSize: 16, color: C.ink, marginBottom: 4,
+  },
+  shelfPick: { flexDirection: "row", gap: 8, marginBottom: 4 },
+  shelfBtn: { flex: 1, borderWidth: 2, borderColor: C.mossDeep, borderRadius: 6, backgroundColor: C.mossSoft, paddingVertical: 8, alignItems: "center" },
+  shelfBtnOn: { backgroundColor: C.leaf },
+  shelfBtnText: { fontSize: 14 },
   support: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", backgroundColor: C.moss, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 },
   supportText: { fontSize: 15 },
   supportLink: { fontSize: 15, color: C.leaf, textDecorationLine: "underline" },

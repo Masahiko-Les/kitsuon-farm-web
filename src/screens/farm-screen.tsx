@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { T } from "@/components/ui";
 import type { Seed } from "@/lib/farm-api";
 import {
-  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, cropById, isDesert, keyOf, roomTileAt, tileAt,
+  type Area, BUILDINGS, CAFE_GUESTS, HALL_GUESTS, LIBRARY_GUESTS, DIRS, type Dir, MAX_WATERERS, ROOMS, type RoomId, WALKABLE, buildingAt, canSow, cropById, isDesert, keyOf, roomTileAt, tileAt,
 } from "@/lib/game";
 import { useActions } from "@/modals";
 import { isConfigured } from "@/lib/supabase";
@@ -44,12 +44,17 @@ const ROOM_HINTS: Record<RoomId, Record<string, string>> = {
     D: "作業机だ。図面とノートが広げてある。",
     P: "砂漠でも元気な鉢植えだ。",
   },
+  library: {
+    "#": "大きな窓から、やわらかい光が入ってくる。",
+    P: "よく手入れされた鉢植えだ。",
+  },
 };
 const ROOM_IDLE: Record<RoomId, string> = {
   house: "自分の家だ。ほっとする。",
   cafe: "コーヒーの香りがする。静かで、あたたかい。",
   hall: "村役場だ。窓口では、係員が村人を迎えている。",
   dev: "開発局だ。吃音村をもっと良くするための場所らしい。",
+  library: "図書館だ。しんとして、紙のにおいがする。",
 };
 // 入れる建物の入り口に立ったときのヒント
 const DOOR_HINTS: Record<RoomId, string> = {
@@ -57,6 +62,7 @@ const DOOR_HINTS: Record<RoomId, string> = {
   cafe: "カフェの入り口だ。コーヒーのいい香りがする。",
   hall: "村役場の入り口だ。",
   dev: "開発局の入り口だ。砂漠のまんなかに、ぽつんと建っている。",
+  library: "図書館の入り口だ。",
 };
 // 村人が最初に立つ場所（焚き火の広場の南）
 const START = { x: 16, y: 17 };
@@ -326,6 +332,15 @@ export function FarmScreen() {
       if (room === "dev") {
         if (front === "V") return { label: "話す", hint: "開発局のフクロウが、作業机で何か考えている。", run: a.showDevStaff };
         if (front === "G") return { label: "読む", hint: "黒板に、村人のアイデアがチョークで書いてある。", run: a.showBlackboard };
+      }
+      if (room === "library") {
+        if (front === "A") return { label: "見る", hint: "左の本棚には、吃音についての本が並んでいる。", run: () => a.showShelf("stutter") };
+        if (front === "Z") return { label: "見る", hint: "右の本棚には、心をあたためてくれる本が並んでいる。", run: () => a.showShelf("heart") };
+        if (front === "C" || front === "J") return { label: "話す", hint: "司書のヒツジが、カウンターで本を整えている。", run: a.showLibrarian };
+        if (front === "T") return { label: "読む", hint: "テーブルの上に、ノートが開いて置いてある。", run: a.showNotebook };
+        if (front === "h") {
+          return { label: "…", hint: LIBRARY_GUESTS[keyOf(fx, fy)] ? "村人が、静かに本を読んでいる。" : "閲覧席の椅子だ。", run: null };
+        }
       }
       const h = ROOM_HINTS[room][front];
       if (h) return { label: "…", hint: h, run: null };
