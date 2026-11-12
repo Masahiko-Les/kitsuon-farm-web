@@ -5,6 +5,7 @@ import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 
 import { MayorPortrait, VillageMap, addEffect, setFireCount } from "@/components/farm-map";
+import { BadgeIcon } from "@/components/badge-icon";
 import { FlowerIcon } from "@/components/flower-icon";
 import { useModal } from "@/components/modal-host";
 import { useToast } from "@/components/toast";
@@ -29,6 +30,7 @@ import {
 import {
   CAMPFIRE_HIDDEN_KEY, CAMPFIRE_MAX, type FireMessage, addFireMessage, agoText, loadFire, reportFireMessage,
 } from "@/lib/campfire";
+import { BADGES, type BadgeId, badgeById } from "@/lib/badges";
 import { checkText } from "@/lib/text";
 import { useFarm } from "@/state/farm";
 import { C, F } from "@/theme";
@@ -79,6 +81,7 @@ export function useActions() {
     showLibrarian: () => modal.open(<LibrarianModal />),
     showBoy: () => modal.open(<BoyModal />),
     showCampfire: () => modal.open(<CampfireModal />),
+    showBadge: (id: BadgeId) => modal.open(<BadgeModal id={id} />),
     showNotebook: () => modal.open(<NotebookModal />),
     showNoteWrite: () => modal.open(<NoteWriteModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
@@ -492,9 +495,33 @@ function HarvestModal({ letter, crop }: { letter: Letter; crop: Crop }) {
 /* =========================================================
    思い出帳
    ========================================================= */
-function BookModal() {
-  const { crops: farmCrops, mayorCrops } = useFarm();
+// 村長がバッジを渡す（はじめてのことをしたとき）
+function BadgeModal({ id }: { id: BadgeId }) {
   const a = useActions();
+  const b = badgeById(id);
+  return (
+    <>
+      <View style={s.mayorHead}>
+        <MayorPortrait size={64} />
+        <View style={{ flex: 1 }}><Title>村長</Title></View>
+      </View>
+      <Body>「村に貢献してくれてありがとう。お礼に小さいがバッジをもらってくれ。」</Body>
+      <Animated.View entering={ZoomIn.duration(400)} style={s.badgeBig}>
+        <BadgeIcon id={id} size={96} />
+        <T style={s.badgeName}>{b.name}</T>
+        <Small>{b.how}</Small>
+      </Animated.View>
+      <Small>もらったバッジは、思い出帳で見られます。</Small>
+      <Actions><Btn label="受け取る" onPress={a.close} /></Actions>
+    </>
+  );
+}
+
+function BookModal() {
+  const { crops: farmCrops, mayorCrops, badges } = useFarm();
+  const a = useActions();
+  const [picked, setPicked] = useState<BadgeId | null>(null);
+  const gotBadges = BADGES.filter((b) => badges[b.id]).length;
   const all = [...farmCrops, ...mayorCrops]; // 村長の種の花も入れる
   const crops = [...all].sort((x, y) => millis(y.harvestedAt) - millis(x.harvestedAt));
   const got = new Set(crops.map((c) => cropById(c.cropType).id)); // 花にする前の id も、花として数える
@@ -509,6 +536,26 @@ function BookModal() {
       <View style={s.dexRow} accessible={false}>
         {DESERT_CROPS.map((c) => <FlowerIcon key={c.id} id={c.id} size={32} dim={!got.has(c.id)} />)}
       </View>
+      <T style={s.dex}>{`村長からもらったバッジ ${gotBadges} / ${BADGES.length}種類`}</T>
+      <View style={s.badgeRow}>
+        {BADGES.map((b) => (
+          <Pressable
+            key={b.id}
+            onPress={() => setPicked(picked === b.id ? null : b.id)}
+            accessibilityRole="button"
+            accessibilityLabel={badges[b.id] ? b.name : "まだもらっていないバッジ"}
+          >
+            <BadgeIcon id={b.id} size={36} locked={!badges[b.id]} />
+          </Pressable>
+        ))}
+      </View>
+      {picked ? (
+        <Small style={{ marginTop: -6, marginBottom: 10 }}>
+          {badges[picked]
+            ? `${badgeById(picked).name}（${dateText(badges[picked]!)}）：${badgeById(picked).how}`
+            : `まだもらっていないバッジ：${badgeById(picked).how}と、村長からもらえる。`}
+        </Small>
+      ) : null}
       {crops.length === 0 ? (
         <Body>まだ花はありません。種に水やりするか、届いた手紙に「ありがとう」を伝えると、花が咲いてここに入ります。</Body>
       ) : (
@@ -1514,6 +1561,9 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   clerk: { gap: 10, marginTop: 6 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, marginBottom: 12 },
+  badgeBig: { alignItems: "center", gap: 6, marginVertical: 12 },
+  badgeName: { fontSize: 17 },
   mayorHead: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 6 },
   mayorPage: { fontSize: 12, color: C.sub, marginTop: -6 },
   consult: { flex: 1, minWidth: 0, alignSelf: "center" }, // 狭いときは折り返して、ボタンを1列に収める

@@ -221,6 +221,17 @@ export function FarmScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  /* ---------- 村長からもらうバッジ：はじめてのことをしたら、モーダルが閉じているときに村長が渡す ---------- */
+  const { newBadges, shiftNewBadge, checkServerBadges } = farm;
+  useEffect(() => {
+    if (modal.isOpen || newBadges.length === 0) return;
+    const t = setTimeout(() => { a.showBadge(newBadges[0]); shiftNewBadge(); }, 400);
+    return () => clearTimeout(t);
+  }, [modal.isOpen, newBadges, shiftNewBadge, a]);
+  // カフェ・住民票・図書館のバッジは、モーダルを閉じたときと、この画面に戻ったときに確かめる
+  useEffect(() => { if (!modal.isOpen) checkServerBadges(); }, [modal.isOpen, checkServerBadges]);
+  useFocusEffect(useCallback(() => { checkServerBadges(); }, [checkServerBadges]));
+
   /* ---------- 焚き火：24時間以内にくべられた薪の数で、火の大きさを変える ---------- */
   const fireReady = isConfigured && farm.phase === "ready";
   useEffect(() => {

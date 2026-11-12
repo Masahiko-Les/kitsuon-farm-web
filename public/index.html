@@ -8,9 +8,9 @@
     <meta name="theme-color" content="#2e3a2b" />
     <meta name="description" content="吃音の苦労を「種」として蒔き、やさしい言葉の手紙で水やりをする農場。" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="吃音村" />
+    <meta name="apple-mobile-web-app-title" content="吃音コミュニティゲーム" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>吃音村</title>
+    <title>吃音コミュニティゲーム</title>
     <style id="expo-reset">
       html,
       body {
@@ -29,11 +29,11 @@
         outline: none;
       }
       /* 起動画面：アプリが動き出す前（描画エンジンとプログラムの読み込み中）に出す。
-         「吃音村β版」と点だけを DotGothic16 から抜き出したフォント（約1KB）を埋め込んでいる。
+         「吃音コミュニティゲームβ版」と点だけを DotGothic16 から抜き出したフォント（約1.5KB）を埋め込んでいる。
          アプリが動き出したあとも src/components/splash.tsx が同じ見た目で引き継ぐ */
       @font-face {
         font-family: "KitsuonSplash";
-        src: url(data:font/woff2;base64,d09GMgABAAAAAAQ8ABAAAAAACNgAAAPlAAEZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGYFWGyAcIAZgAGQRCAqGCIUtATYCJAMYCxIABCAFg2AHIBckGBIbVgdRFHEF+OKAJ4PmOWScNKEZE82c6pz4yVSI6gKv4uFrTer97k52diZZhCwSHVN5dqzZKGZhrk4RWuI5XNs9KqHhzZNr87q9+W1YaTQoVuxEbCWHp5r+8uMcTW2K2hcct1GK0pJ8xd0ggzK1qF9VMRbHoJq74WpsVdQaWbQRMqERMqWILqLpEE2iHiJDS/AiVhLt60cr7UP7WF51ik2eqip0XnAcoNKOZ+9OoHIDKqS7e+/xDLVrP2hB90aUTejeRBwdarcSh0DtNsId6OqCpBiYaa6FuiArekYYY4JoE/kQoSXaFeOUm69V6DHP/2fCv0HXdtakmoN5j4LXZXFpbYqBWOenxRRoW0BzdskfxleH9HC6A4f80LhCJ3aDlIYC7gMV/F3sPXc4wVTh8V+y16I8GAUEpCl5NKbrIiFjjCwwRnEcGGGEjOmW5mdPB288gdvfL23Lfm77Vfvxvyek/wuPvXVTXgAUotZaO77aiREYRcwltgAKgJB0FFkugzFjqqqUUd0yc/qIatzyKniuUZ9rchPI62vU9ibm9KJGl/TTUDu2sfaa91Kf1JhX3+J9I04UBY3Tw1M9kKlvjJ6r/bc2gTqlbgp0Q79EqXO5Tldn9ZNTo29E7a3bg+2cQvdQNbooFXWqs9p9e6dYn4Zi/sg1oamFTuzPTaozVphvzGj2EdRPb6qbT4d49Gh0LDZ5b0RFbL3tQS4Z72tBJE8rZcXFE2B5DSqaqVukrKMvSnQx1ox3N/KdDD4KIYyt9eZbGwckd/ebO9CsN8rirJwbV9j3tlzJ5ai5apLTU0AD3nrk1X5AXT7I68ahHi+uves1r0C9J0jnpr26FVpdv3FsK5iiyeCr6m+WiU2iRW9eUL1wQf7sXYJq/flczC3P123Bst6lH2lkDcngoLp1sVGAhk+czG3YjHVad+mW/X/3+tKmWzwZqlDbgankBCrFak0GMo9MJEeez3mQwAvgBV4TiIlP/bSldWV2829VMv8In16ztY7zv5v/Q/tgpj17QFdSma88+P+X9Ajt322FAFD4xN3xKx/YNg6+alr7uEDlWWNMkWrvFwJDXBQUZSjexkVhnLdFyTCfiLLNvhUVc2O6qGNS7H1d19y4yoLL84F0Kg1XsNLybzTdaRYrl+7m4jYdNDVP1LYWHYc8GDqrWO3f4aFqdSGmYP6sp3Eepm+ZZW6kW+ED1XCtJWxNN8Q8B/eqRSamzq/DNPewzjILsr+Rk2SqBwuB2pZaYbnlNtnr5uBkUL1kyTmOUtF0/5X81lZ933OFVaexkjcIVLbPWKk3Rohf/+8Ff/x9KRPYaJfvSh/ZanADAA==) format("woff2");
+        src: url(data:font/woff2;base64,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) format("woff2");
         font-display: block;
       }
       .splash {
@@ -46,8 +46,8 @@
         font-family: "KitsuonSplash", monospace;
       }
       .splash-title {
-        font-size: 44px;
-        letter-spacing: 6px;
+        font-size: min(28px, calc((100vw - 32px) / 14));
+        letter-spacing: 2px;
         color: #eef2e6;
       }
       .splash-dots {
@@ -75,10 +75,10 @@
   </head>
 
   <body>
-    <noscript>吃音村を遊ぶには JavaScript を有効にしてください。</noscript>
+    <noscript>吃音コミュニティゲームを遊ぶには JavaScript を有効にしてください。</noscript>
     <div id="root">
-      <div class="splash" role="status" aria-label="吃音村を読み込んでいます">
-        <div class="splash-title">吃音村β版</div>
+      <div class="splash" role="status" aria-label="吃音コミュニティゲームを読み込んでいます">
+        <div class="splash-title">吃音コミュニティゲームβ版</div>
         <div class="splash-dots" aria-hidden="true"></div>
       </div>
     </div>

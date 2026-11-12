@@ -12,6 +12,9 @@ import { RESIDENT_HIDDEN_KEY } from "@/lib/resident-api";
 import { isConfigured, supabase } from "@/lib/supabase";
 import { type Crop, TERMS_VERSION, cropById, randomCrop } from "@/lib/game";
 import { type MayorKind, type MayorSeedState, mayorCropOf, mayorSeedKey } from "@/lib/mayor-seed";
+import { type BadgeId, type Earned, badgesKey, localBadges, serverBadges } from "@/lib/badges";
+import { LIBRARY_HIDDEN_KEY } from "@/lib/library";
+import { CAMPFIRE_HIDDEN_KEY } from "@/lib/campfire";
 
 const HIDDEN_KEY = "kitsuon-hidden-seeds";
 const desertIntroKey = (uid: string) => `kitsuon-desert-intro-${uid}`;
@@ -49,6 +52,10 @@ type FarmState = {
   justJoined: boolean; // 名前を登録して同意したばかり（村長のオリエンテーションを出す）
   clearJustJoined: () => void;
   refresh: () => void; // 自分で書き込んだあと、Realtime の通知を待たずに一覧を読み直す
+  badges: Earned; // 村長からもらったバッジ（id → もらった日時。端末に保存）
+  newBadges: BadgeId[]; // もらったばかりで、まだ村長が渡していないバッジ
+  shiftNewBadge: () => void;
+  checkServerBadges: () => void; // カフェ・住民票・図書館のバッジを確かめる（画面に戻ったときなど）
 };
 
 const FarmContext = createContext<FarmState | null>(null);
@@ -78,6 +85,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [mySeeds, setMySeeds] = useState(new Map<string, Seed>());
   const [rawLetters, setRawLetters] = useState<Letter[]>([]);
   const [crops, setCrops] = useState<CropDoc[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [blocked, setBlocked] = useState(new Set<string>());
   const [hiddenSeeds, setHiddenSeeds] = useState(new Set<string>());
   const [seenThanks, setSeenThanks] = useState(new Set<string>());
@@ -161,6 +169,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   // 村長の種（村・砂漠）。村人ごとに端末へ保存する
   const [mayorSeed, setMayorSeed] = useState<MayorSeedState>({ state: "none" });
   const [mayorDesertSeed, setMayorDesertSeed] = useState<MayorSeedState>({ state: "none" });
+  const [mayorLoaded, setMayorLoaded] = useState(false);
   const saveMayorSeed = useCallback((id: string, v: MayorSeedState, kind: MayorKind = "farm") => {
     (kind === "farm" ? setMayorSeed : setMayorDesertSeed)(v);
     AsyncStorage.setItem(mayorSeedKey(id, kind), JSON.stringify(v)).catch(() => {});
@@ -174,8 +183,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         if (f) setMayorSeed(JSON.parse(f));
         if (d) setMayorDesertSeed(JSON.parse(d));
       })
-      .catch(() => {});
-    return () => { alive = false; setMayorSeed({ state: "none" }); setMayorDesertSeed({ state: "none" }); };
+      .catch(() => {})
+      .finally(() => { if (alive) setMayorLoaded(true); });
+    return () => { alive = false; setMayorSeed({ state: "none" }); setMayorDesertSeed({ state: "none" }); setMayorLoaded(false); };
   }, [uid]);
   // 砂漠に初めて種を蒔くときの村長の話。村人ごとに端末へ保存する
   const [desertIntroSeen, setDesertIntroSeen] = useState<boolean | null>(null);
@@ -222,7 +232,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setPhase("ready");
       throw e;
     }
-    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY, mayorSeedKey(current), mayorSeedKey(current, "desert"), desertIntroKey(current)]).catch(() => {});
+    await AsyncStorage.multiRemove([HIDDEN_KEY, SEEN_THANKS_KEY, CAFE_HIDDEN_KEY, DEV_HIDDEN_KEY, RESIDENT_HIDDEN_KEY, mayorSeedKey(current), mayorSeedKey(current, "desert"), desertIntroKey(current), badgesKey(current), LIBRARY_HIDDEN_KEY, CAMPFIRE_HIDDEN_KEY]).catch(() => {});
     setHiddenSeeds(new Set());
     setSeenThanks(new Set());
   }, [uid]);
@@ -233,6 +243,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       newcomer.current = false;
       saveMayorSeed(uid, { state: "pending" });
       setJustJoined(true);
+      // 新しい村人は、はじめてのことをするたびに村長からバッジを受け取る
+      badgeFirstRun.current = false;
+      AsyncStorage.setItem(badgesKey(uid), "{}").catch(() => {});
     }
     setPhase("ready");
   }, [uid, name, saveMayorSeed]);
@@ -256,7 +269,10 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     };
     const refreshAll = () => (Object.keys(loaders) as Key[]).forEach(reload);
     refreshRef.current = refreshAll;
-    refreshAll();
+    // 最初の読み込みが終わったら、バッジを確かめられる
+    Promise.all((Object.keys(loaders) as Key[]).map((k) => loaders[k]()))
+      .then(() => { if (alive) setDataLoaded(true); })
+      .catch((e) => console.error("load", e));
 
     const channel = supabase.channel(`farm-${uid}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "seeds" }, () => {
@@ -293,6 +309,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setRawLetters([]);
       setCrops([]);
       setBlocked(new Set());
+      setDataLoaded(false);
     };
   }, [phase, uid, toast]);
 
@@ -305,9 +322,61 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const unreadCount = letters.filter((l) => l.status === "unread").length
     + thanks.filter((c) => !seenThanks.has(c.id)).length;
 
+  /* ---------- 村長からもらったバッジ（src/lib/badges.ts） ---------- */
+  const [badges, setBadges] = useState<Earned | null>(null); // null は読み込み中
+  const badgesRef = useRef<Earned | null>(null);
+  const [newBadges, setNewBadges] = useState<BadgeId[]>([]);
+  // 保存がまだない端末（バッジができる前からの村人）は、最初に確かめたぶんを村長の話なしで入れる
+  const badgeFirstRun = useRef(false);
+  useEffect(() => {
+    if (!uid || !isConfigured) return;
+    let alive = true;
+    AsyncStorage.getItem(badgesKey(uid))
+      .then((v) => {
+        if (!alive) return;
+        if (!v) badgeFirstRun.current = true;
+        const e = v ? (JSON.parse(v) as Earned) : {};
+        badgesRef.current = e;
+        setBadges(e);
+      })
+      .catch(() => { if (alive) { badgesRef.current = {}; setBadges({}); } });
+    return () => { alive = false; badgesRef.current = null; setBadges(null); setNewBadges([]); };
+  }, [uid]);
+  const award = useCallback((ids: Iterable<BadgeId>) => {
+    const cur = badgesRef.current;
+    if (!cur) return;
+    const add = [...ids].filter((id) => !cur[id]);
+    if (add.length === 0) return;
+    const now = new Date().toISOString();
+    const next: Earned = { ...cur };
+    for (const id of add) next[id] = now;
+    badgesRef.current = next;
+    setBadges(next);
+    AsyncStorage.setItem(badgesKey(uid), JSON.stringify(next)).catch(() => {});
+    if (!badgeFirstRun.current) setNewBadges((q) => [...q, ...add.filter((id) => !q.includes(id))]);
+  }, [uid]);
+  const badgesReady = badges !== null && dataLoaded && mayorLoaded && phase === "ready";
+  // 村のデータから決まるバッジ。データが変わるたびに確かめる
+  useEffect(() => {
+    if (!badgesReady) return;
+    award(localBadges({ uid, mySeeds, publicSeeds, crops, mayorSeed, mayorDesertSeed }));
+  }, [badgesReady, award, uid, mySeeds, publicSeeds, crops, mayorSeed, mayorDesertSeed]);
+  const checkServerBadges = useCallback(() => {
+    const cur = badgesRef.current;
+    if (!badgesReady || !cur) return;
+    const need = (["cafe", "resident", "book"] as BadgeId[]).filter((id) => !cur[id]);
+    const done = () => { badgeFirstRun.current = false; };
+    if (need.length === 0) { done(); return; }
+    serverBadges(uid, need).then((got) => { award(got); done(); }).catch((e) => { console.error("badges", e); done(); });
+  }, [badgesReady, uid, award]);
+  // 読み込みが終わったら、一度サーバーのぶんも確かめる（これで最初の確かめが終わる）
+  useEffect(() => { checkServerBadges(); }, [checkServerBadges]);
+  const shiftNewBadge = useCallback(() => setNewBadges((q) => q.slice(1)), []);
+
   const value: FarmState = {
     phase, errorMessage, uid, name, isAdmin, publicSeeds, mySeeds, letters, crops, thanks, seenThanks, blocked, hiddenSeeds,
     unreadCount, register, agree, hideSeed, markThanksSeen, deleteAllData, mayorSeed, mayorDesertSeed, mayorCrops, waterMayorSeed, startMayorDesertSeed, desertIntroSeen, markDesertIntroSeen, justJoined, clearJustJoined, refresh,
+    badges: badges ?? {}, newBadges, shiftNewBadge, checkServerBadges,
   };
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
 }
