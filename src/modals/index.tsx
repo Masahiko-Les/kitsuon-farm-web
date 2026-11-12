@@ -537,8 +537,11 @@ function MayorModal() {
   const a = useActions();
   return (
     <>
-      <Title>村長</Title>
-      <Body>村長「よう元気か」</Body>
+      <View style={s.mayorHead}>
+        <MayorPortrait size={64} />
+        <View style={{ flex: 1 }}><Title>村長</Title></View>
+      </View>
+      <Body>「よう元気か」</Body>
       <Actions>
         <Btn kind="quiet" label="村のことを聞く" onPress={a.showOrientation} />
         <Btn label="とじる" onPress={a.close} />
@@ -609,12 +612,12 @@ function MayorThanksModal({ crop }: { crop: Crop }) {
         <MayorPortrait size={64} />
         <View style={{ flex: 1 }}><Title>村長</Title></View>
       </View>
-      <Body>村長「ありがとうな。これで村がまた少し元気になった」</Body>
+      <Body>「ありがとうな。これで村がまた少し元気になった」</Body>
       <View style={{ alignItems: "center" }}>
         <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={crop.id} size={96} style={s.cropBig} /></Animated.View>
       </View>
       <Body style={{ textAlign: "center" }}>{`村長の種に${crop.name}が咲きました。思い出帳に入りました。`}</Body>
-      <Body>村長「村には、ほかの村人の種も埋まっておる。光っているところを見つけたら、また水やりしてあげておくれ」</Body>
+      <Body>「村には、ほかの村人の種も埋まっておる。光っているところを見つけたら、また水やりしてあげておくれ」</Body>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );
@@ -649,11 +652,11 @@ const ORIENTATION: { title: string; lines: string[] }[] = [
   ] },
   { title: "花が咲く", lines: [
     "手紙を受け取った人が「ありがとう」を返すと、その種から花が咲く。",
-    "花は、蒔いた人と水やりした人の2人の思い出帳に入って、村の地面にも咲くんじゃ。咲いたあとも、水やりの手紙は送れるぞ。",
+    "花は、蒔いた人と水やりした人の2人の思い出帳に入って、村の地面にも咲くんじゃ。",
   ] },
   { title: "完全に匿名の村", lines: [
     "大事なことをひとつ。この村は完全に匿名じゃ。メールアドレスも本名もいらんし、連絡先は書けん。",
-    "種には、蒔いた人の村人名すら出さん。誰の苦労かは、誰にもわからん。だから安心して、本当の気持ちを蒔いておくれ。",
+    "種には、蒔いた人の村人名すら出ないのじゃ。誰の苦労かは、誰にもわからん。だから安心して、本当の気持ちを蒔いておくれ。",
   ] },
   { title: "困ったときは", lines: [
     "嫌な言葉が届いたら、通報やブロックができる。本当につらいときは、相談できる窓口もあるからの。",
@@ -683,7 +686,7 @@ function OrientationModal() {
           <T style={s.mayorPage}>{`村長のはなし　${page + 1} / ${pages.length}`}</T>
         </View>
       </View>
-      {p.lines.map((l) => <Body key={l}>{`村長「${l}」`}</Body>)}
+      {p.lines.map((l) => <Body key={l}>{`「${l}」`}</Body>)}
       <Actions>
         {page > 0 ? <Btn kind="quiet" label="もどる" onPress={() => setPage(page - 1)} /> : null}
         <Btn label={last ? "村を歩く" : "次へ"} onPress={() => (last ? a.close() : setPage(page + 1))} />
