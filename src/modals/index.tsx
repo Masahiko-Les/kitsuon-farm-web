@@ -16,9 +16,9 @@ import {
   type CropDoc, type Letter, type Seed, blockUser, dateText, markRead, millis, readMyLetter, readSeedText, reportLetter,
   reportSeed, sayThanks, sowSeed, waterSeed,
 } from "@/lib/farm-api";
-import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, randomCrop, seedNameOf } from "@/lib/game";
+import { CROPS, type Crop, DESERT_CROPS, cropById, isDesert, isDesertSeedId, randomCrop, seedNameOf } from "@/lib/game";
 import { SUPPORT_LINES, SUPPORT_NOTE } from "@/lib/safety";
-import { MAYOR_SEED_TEXT, MAYOR_UID } from "@/lib/mayor-seed";
+import { MAYOR_UID, type MayorKind, mayorSeedName, mayorSeedText } from "@/lib/mayor-seed";
 import { BULLETIN, BULLETIN_NOTE, BULLETIN_TITLE } from "@/lib/bulletin";
 import { loadResidentCount } from "@/lib/resident-api";
 import { DEV_HIDDEN_KEY, type DevIdea, addIdea, loadBoard, reportIdea } from "@/lib/dev-api";
@@ -61,9 +61,9 @@ export function useActions() {
       modal.open(<MapModal here={here} blooms={blooms} onGo={onGo} />),
     showMayor: () => modal.open(<MayorModal />),
     showOrientation: () => modal.open(<OrientationModal />),
-    showDesertIntro: (x: number, y: number) => modal.open(<DesertIntroModal x={x} y={y} />),
-    showMayorSeed: (x: number, y: number) => modal.open(<MayorSeedModal x={x} y={y} />),
-    showMayorMemory: () => modal.open(<MayorMemory />),
+    showDesertIntro: (x: number, y: number, withSeed: boolean) => modal.open(<DesertIntroModal x={x} y={y} withSeed={withSeed} />),
+    showMayorSeed: (kind: MayorKind, x: number, y: number) => modal.open(<MayorSeedModal kind={kind} x={x} y={y} />),
+    showMayorMemory: (kind: MayorKind) => modal.open(<MayorMemory kind={kind} />),
     showDevStaff: () => modal.open(<DevStaffModal />),
     showBlackboard: () => modal.open(<BlackboardModal />),
     showMemory: (c: CropDoc) => modal.open(<MemoryModal crop={c} />),
@@ -478,9 +478,9 @@ function HarvestModal({ letter, crop }: { letter: Letter; crop: Crop }) {
    思い出帳
    ========================================================= */
 function BookModal() {
-  const { crops: farmCrops, mayorCrop } = useFarm();
+  const { crops: farmCrops, mayorCrops } = useFarm();
   const a = useActions();
-  const all = mayorCrop ? [...farmCrops, mayorCrop] : farmCrops; // 村長の種の花も入れる
+  const all = [...farmCrops, ...mayorCrops]; // 村長の種の花も入れる
   const crops = [...all].sort((x, y) => millis(y.harvestedAt) - millis(x.harvestedAt));
   const got = new Set(crops.map((c) => cropById(c.cropType).id)); // 花にする前の id も、花として数える
   return (
@@ -554,23 +554,23 @@ function MayorModal() {
 /* =========================================================
    村長が蒔いた種（新しい村人の、初めての水やりの練習。src/lib/mayor-seed.ts）
    ========================================================= */
-function MayorSeedModal({ x, y }: { x: number; y: number }) {
+function MayorSeedModal({ kind, x, y }: { kind: MayorKind; x: number; y: number }) {
   const a = useActions();
   const modal = useModal();
   return (
     <>
-      <Title>村長の種</Title>
-      <Paper text={MAYOR_SEED_TEXT} />
+      <Title>{mayorSeedName(kind)}</Title>
+      <Paper text={mayorSeedText(kind)} />
       <Body style={{ marginTop: 14 }}>水やりしますか？</Body>
       <Actions>
         <Btn kind="quiet" label="いいえ" onPress={a.close} />
-        <Btn kind="water" label="はい" onPress={() => modal.open(<MayorWaterModal x={x} y={y} />)} />
+        <Btn kind="water" label="はい" onPress={() => modal.open(<MayorWaterModal kind={kind} x={x} y={y} />)} />
       </Actions>
     </>
   );
 }
 
-function MayorWaterModal({ x, y, initial = "" }: { x: number; y: number; initial?: string }) {
+function MayorWaterModal({ kind, x, y, initial = "" }: { kind: MayorKind; x: number; y: number; initial?: string }) {
   const { waterMayorSeed } = useFarm();
   const a = useActions();
   const modal = useModal();
@@ -581,31 +581,33 @@ function MayorWaterModal({ x, y, initial = "" }: { x: number; y: number; initial
     const res = checkText(text.current);
     if (res.crisis) {
       const draft = text.current;
-      a.showSupport("letter", () => modal.open(<MayorWaterModal x={x} y={y} initial={draft} />));
+      a.showSupport("letter", () => modal.open(<MayorWaterModal kind={kind} x={x} y={y} initial={draft} />));
       return;
     }
     if (res.error) { setErr(res.error); return; }
-    const crop = waterMayorSeed(x, y, text.current.trim());
+    const crop = waterMayorSeed(kind, x, y, text.current.trim());
     addEffect("water", x, y);
-    modal.open(<MayorThanksModal crop={crop} />);
+    modal.open(<MayorThanksModal kind={kind} crop={crop} />);
   };
 
   return (
     <>
       <Title>優しい言葉で水やりしましょう</Title>
-      <Details summary="村長の種をもう一度読む"><Paper text={MAYOR_SEED_TEXT} /></Details>
-      <Tips items={["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて", "村長への手紙は、あなたの端末にだけ残ります"]} />
+      <Details summary={`${mayorSeedName(kind)}をもう一度読む`}><Paper text={mayorSeedText(kind)} /></Details>
+      <Tips items={kind === "farm"
+        ? ["アドバイスより、まず気持ちを受け止める言葉を", "似た経験があれば、ひとこと添えて", "村長への手紙は、あなたの端末にだけ残ります"]
+        : ["挑戦したこと、しようとしていることを応援する言葉を", "結果より、一歩をふみ出したことに目を向けて", "村長への手紙は、あなたの端末にだけ残ります"]} />
       <PaperInput placeholder="村長へ" initial={initial} onChangeText={(t) => { text.current = t; }} />
       <ErrorText>{err}</ErrorText>
       <Actions>
-        <Btn kind="quiet" label="もどる" onPress={() => modal.open(<MayorSeedModal x={x} y={y} />)} />
+        <Btn kind="quiet" label="もどる" onPress={() => modal.open(<MayorSeedModal kind={kind} x={x} y={y} />)} />
         <Btn kind="water" label="水やりする" onPress={submit} />
       </Actions>
     </>
   );
 }
 
-function MayorThanksModal({ crop }: { crop: Crop }) {
+function MayorThanksModal({ kind, crop }: { kind: MayorKind; crop: Crop }) {
   const a = useActions();
   return (
     <>
@@ -617,18 +619,23 @@ function MayorThanksModal({ crop }: { crop: Crop }) {
       <View style={{ alignItems: "center" }}>
         <Animated.View entering={ZoomIn.springify().damping(9)}><FlowerIcon id={crop.id} size={96} style={s.cropBig} /></Animated.View>
       </View>
-      <Body style={{ textAlign: "center" }}>{`村長の種に${crop.name}が咲きました。思い出帳に入りました。`}</Body>
-      <Body>「村には、ほかの村人の種も埋まっておる。光っているところを見つけたら、また水やりしてあげておくれ」</Body>
+      <Body style={{ textAlign: "center" }}>{`${mayorSeedName(kind)}に${crop.name}が咲きました。思い出帳に入りました。`}</Body>
+      <Body>
+        {kind === "farm"
+          ? "「村には、ほかの村人の種も埋まっておる。光っているところを見つけたら、また水やりしてあげておくれ」"
+          : "「さあ、こんどはおぬしの番じゃ。砂の上で『蒔く』を押して、挑戦の種を蒔いてごらん」"}
+      </Body>
       <Actions><Btn label="とじる" onPress={a.close} /></Actions>
     </>
   );
 }
 
-function MayorMemory() {
-  const { mayorCrop } = useFarm();
+function MayorMemory({ kind }: { kind: MayorKind }) {
+  const { mayorCrops } = useFarm();
   const a = useActions();
-  if (!mayorCrop) return <><Body>村長の種の思い出は見つかりませんでした。</Body><Actions><Btn label="とじる" onPress={a.close} /></Actions></>;
-  return <MemoryModal crop={mayorCrop} />;
+  const crop = mayorCrops.find((c) => c.id.startsWith(`mayor-${kind}_`));
+  if (!crop) return <><Body>{`${mayorSeedName(kind)}の思い出は見つかりませんでした。`}</Body><Actions><Btn label="とじる" onPress={a.close} /></Actions></>;
+  return <MemoryModal crop={crop} />;
 }
 
 /* =========================================================
@@ -694,11 +701,19 @@ const DESERT_INTRO: { title: string; lines: string[] }[] = [
   ] },
 ];
 
-function DesertIntroModal({ x, y }: { x: number; y: number }) {
+// 村長の挑戦の種をすぐそばに出したときは、最後に水やりへ誘う（蒔く画面には進まない）
+const DESERT_INTRO_SEED = { title: "まずは水やりを", lines: [
+  "その前に、すぐそばにわしが蒔いた挑戦の種がある。砂がきらっと光っておるじゃろう。",
+  "まずはその種に、応援の手紙で水やりしてみておくれ。",
+] };
+
+function DesertIntroModal({ x, y, withSeed }: { x: number; y: number; withSeed: boolean }) {
   const { markDesertIntroSeen } = useFarm();
   const a = useActions();
   useEffect(() => { markDesertIntroSeen(); }, [markDesertIntroSeen]);
-  return <MayorTalk pages={DESERT_INTRO} lastLabel="挑戦の種を蒔く" onDone={() => a.showSow(x, y)} />;
+  return withSeed
+    ? <MayorTalk pages={[...DESERT_INTRO, DESERT_INTRO_SEED]} lastLabel="水やりしに行く" onDone={a.close} />
+    : <MayorTalk pages={DESERT_INTRO} lastLabel="挑戦の種を蒔く" onDone={() => a.showSow(x, y)} />;
 }
 
 // 村長が何ページかに分けて話す（オリエンテーション・砂漠の話）
@@ -894,8 +909,9 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
   const info = cropById(c.cropType);
   const self = c.sowerUid === c.watererUid; // 自分の種への水やり
   const mayor = c.sowerUid === MAYOR_UID; // 村長の種（端末にだけある）
+  const mayorName = mayorSeedName(isDesertSeedId(c.seedId) ? "desert" : "farm");
   const lead = mayor
-    ? "あなたが村長の種に水やりしました。"
+    ? `あなたが${mayorName}に水やりしました。`
     : self
     ? "あなたの種に、自分で水やりしました。"
     : c.sowerUid === uid
@@ -908,7 +924,7 @@ function MemoryModal({ crop: c }: { crop: CropDoc }) {
         <Title>{`${info.name}　${dateText(c.harvestedAt)}`}</Title>
       </View>
       <Body>{lead}</Body>
-      <SectionLabel>{mayor ? "村長の種" : `${c.sowerUid === uid ? "あなた" : "誰か"}の${seedNameOf(c.seedId)}`}</SectionLabel>
+      <SectionLabel>{mayor ? mayorName : `${c.sowerUid === uid ? "あなた" : "誰か"}の${seedNameOf(c.seedId)}`}</SectionLabel>
       <Paper text={c.seedText} />
       <SectionLabel>{mayor ? "あなたの手紙" : self ? "自分への手紙" : `${c.watererName}さんの手紙`}</SectionLabel>
       <Paper text={c.letterText} />

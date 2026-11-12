@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,7 +15,7 @@ import {
 import { useActions } from "@/modals";
 import { isConfigured } from "@/lib/supabase";
 import { useFarm } from "@/state/farm";
-import { MAYOR_SEED_SPOTS, MAYOR_UID, mayorSeedOf } from "@/lib/mayor-seed";
+import { MAYOR_SEED_SPOTS, MAYOR_UID, mayorSeedName, mayorSeedOf } from "@/lib/mayor-seed";
 import { useVillagers } from "@/state/village";
 import { C } from "@/theme";
 
@@ -90,15 +90,24 @@ export function FarmScreen() {
     const spot = MAYOR_SEED_SPOTS.find((p) => !taken(p.x, p.y));
     return spot ? mayorSeedOf(spot.x, spot.y, null) : null;
   }, [farm.mayorSeed, farm.publicSeeds, farm.mySeeds]);
+  // 砂漠の村長の挑戦の種（砂漠で初めて蒔こうとしたときに、すぐそばに出る）
+  const mayorDesertSeed = useMemo((): Seed | null => {
+    const m = farm.mayorDesertSeed;
+    if (m.state === "none" || m.x === undefined || m.y === undefined) return null;
+    if (farm.publicSeeds.has(keyOf(m.x, m.y)) || farm.mySeeds.has(keyOf(m.x, m.y))) return null;
+    return mayorSeedOf(m.x, m.y, m.state === "done" ? m.bloom : null);
+  }, [farm.mayorDesertSeed, farm.publicSeeds, farm.mySeeds]);
+  const mayorSeeds = useMemo(() => [mayorSeed, mayorDesertSeed].filter((x): x is Seed => !!x), [mayorSeed, mayorDesertSeed]);
 
   /* ---------- 種の判定 ---------- */
   const seedAt = useCallback((x: number, y: number): Seed | null => {
-    if (mayorSeed && mayorSeed.x === x && mayorSeed.y === y) return mayorSeed;
+    const ms = mayorSeeds.find((m) => m.x === x && m.y === y);
+    if (ms) return ms;
     const k = keyOf(x, y);
     if (farm.mySeeds.has(k)) return farm.mySeeds.get(k)!;
     if (farm.hiddenSeeds.has(k)) return null;
     return farm.publicSeeds.get(k) ?? null;
-  }, [farm.mySeeds, farm.publicSeeds, farm.hiddenSeeds, mayorSeed]);
+  }, [farm.mySeeds, farm.publicSeeds, farm.hiddenSeeds, mayorSeeds]);
 
   const kindOf = useCallback((seed: Seed | null): SeedKind => {
     if (!seed) return null;
@@ -110,22 +119,22 @@ export function FarmScreen() {
   }, [farm.uid]);
 
   const nearOpenSeed = useMemo(() => {
-    if (mayorSeed && !mayorSeed.bloom && Math.abs(mayorSeed.x - pos.x) + Math.abs(mayorSeed.y - pos.y) <= 2) return true;
+    if (mayorSeeds.some((m) => !m.bloom && Math.abs(m.x - pos.x) + Math.abs(m.y - pos.y) <= 2)) return true;
     for (const s of farm.publicSeeds.values()) {
       if (kindOf(s) !== "open" || farm.hiddenSeeds.has(s.id)) continue;
       if (Math.abs(s.x - pos.x) + Math.abs(s.y - pos.y) <= 2) return true;
     }
     return false;
-  }, [farm.publicSeeds, farm.hiddenSeeds, kindOf, pos.x, pos.y, mayorSeed]);
+  }, [farm.publicSeeds, farm.hiddenSeeds, kindOf, pos.x, pos.y, mayorSeeds]);
 
   /* ---------- 描画ループに渡すもの ---------- */
   const visibleSeeds = useMemo(() => {
     const m = new Map<string, Seed>();
     for (const s of farm.publicSeeds.values()) if (!farm.hiddenSeeds.has(s.id)) m.set(s.id, s);
     for (const s of farm.mySeeds.values()) m.set(s.id, s);
-    if (mayorSeed) m.set(mayorSeed.id, mayorSeed);
+    for (const ms of mayorSeeds) m.set(ms.id, ms);
     return [...m.values()];
-  }, [farm.publicSeeds, farm.mySeeds, farm.hiddenSeeds, mayorSeed]);
+  }, [farm.publicSeeds, farm.mySeeds, farm.hiddenSeeds, mayorSeeds]);
   const [others] = useState(() => new Map<string, Other>());
   const sceneRef = useRef<Scene>({
     area: "farm",
@@ -246,6 +255,17 @@ export function FarmScreen() {
 
   /* ---------- ヒントとAボタン ---------- */
   const openCafe = () => router.push("/cafe");
+  // 砂漠の村長の話。村長の挑戦の種は、立っているマスのとなりの、種のない砂に出す（なければ話のあとそのまま蒔く）
+  const startDesertIntro = () => {
+    const { x, y } = pos;
+    const m = mayorAt;
+    const spot = (Object.values(DIRS) as [number, number][])
+      .map(([dx, dy]) => ({ x: x + dx, y: y + dy }))
+      .find((p) => isDesert(p.x, p.y) && canSow(p.x, p.y) && !seedAt(p.x, p.y) && !(p.x === m.x && p.y === m.y));
+    if (spot) farm.startMayorDesertSeed(spot.x, spot.y);
+    a.showDesertIntro(x, y, !!spot);
+  };
+
   // 村全体のマップ。建物の中にいるときは、その建物の入り口を「いる場所」にする
   const openMap = () => {
     const sc = sceneRef.current;
@@ -349,9 +369,14 @@ export function FarmScreen() {
     // 「ありがとう」で花が咲いた種
     const bloom = seed?.bloom ? `${cropById(seed.bloom).name}が咲いている。` : "";
     if (seed && seed.ownerUid === MAYOR_UID) {
+      const mk = desert ? "desert" : "farm";
       return seed.bloom
-        ? { label: "見る", hint: `${bloom}村長の種に水やりして咲いた花だ。`, run: () => a.showMayorMemory() }
-        : { label: "水やり", hint: "土の中に種が埋まっている！　村長が蒔いた種のようだ。", run: () => a.showMayorSeed(seed.x, seed.y) };
+        ? { label: "見る", hint: `${bloom}${mayorSeedName(mk)}に水やりして咲いた花だ。`, run: () => a.showMayorMemory(mk) }
+        : {
+          label: "水やり",
+          hint: desert ? "砂の中に種が埋まっている！　村長が蒔いた挑戦の種のようだ。" : "土の中に種が埋まっている！　村長が蒔いた種のようだ。",
+          run: () => a.showMayorSeed(mk, seed.x, seed.y),
+        };
     }
     if (seed && (kind === "mine" || kind === "mine-review")) {
       return { label: "見る", hint: `${bloom}あなたが蒔いた${seedName}だ。`, run: () => a.showOwnSeed(seed) };
@@ -370,9 +395,9 @@ export function FarmScreen() {
     if (canSow(pos.x, pos.y)) {
       const near = nearOpenSeed ? "近くに種の気配がする…　" : "";
       const hint = desert ? "砂漠だ。ここに挑戦の種を蒔ける。" : "ここに種を蒔ける。";
-      // 砂漠に初めて蒔くときは、先に村長が挑戦の種のことを話す
+      // 砂漠に初めて蒔くときは、先に村長が挑戦の種のことを話し、すぐそばの村長の挑戦の種への水やりに誘う
       const firstDesert = desert && farm.desertIntroSeen === false;
-      return { label: "蒔く", hint: `${near}${hint}`, run: () => (firstDesert ? a.showDesertIntro(pos.x, pos.y) : a.showSow(pos.x, pos.y)) };
+      return { label: "蒔く", hint: `${near}${hint}`, run: () => (firstDesert ? startDesertIntro() : a.showSow(pos.x, pos.y)) };
     }
     return { label: "…", hint: nearOpenSeed ? "近くに種の気配がする…" : "今日もいい天気だ。", run: null };
   })();
@@ -436,12 +461,12 @@ export function FarmScreen() {
       </SwipeArea>
 
       <View style={[s.hud, { paddingTop: insets.top + 8, paddingLeft: insets.left + 12, paddingRight: insets.right + 12 }]}>
-        <T style={s.villager} numberOfLines={1}>{`${farm.name}さん`}</T>
+        <T style={s.villager} numberOfLines={2}>{`${farm.name}さん`}</T>
         <View style={s.hudActions}>
           <HudBtn label="マップ" onPress={openMap} />
           <HudBtn label="郵便受け" badge={farm.unreadCount} onPress={a.showMailbox} />
           <HudBtn label="思い出帳" onPress={a.showBook} />
-          <HudBtn label="設定" onPress={() => router.push("/settings")} />
+          <HudBtn label="設定" icon={<GearIcon />} onPress={() => router.push("/settings")} />
         </View>
       </View>
 
@@ -469,7 +494,8 @@ export function FarmScreen() {
   );
 }
 
-function HudBtn({ label, badge = 0, onPress }: { label: string; badge?: number; onPress: () => void }) {
+// icon を渡すと、文字の代わりに絵を出す（読み上げは label のまま）
+function HudBtn({ label, badge = 0, icon, onPress }: { label: string; badge?: number; icon?: ReactNode; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -477,9 +503,35 @@ function HudBtn({ label, badge = 0, onPress }: { label: string; badge?: number; 
       accessibilityLabel={badge ? `${label}　未読${badge}通` : label}
       style={({ pressed }) => [s.hudBtn, pressed && s.hudBtnPressed]}
     >
-      <T style={s.hudText}>{label}</T>
+      {icon ?? <T style={s.hudText}>{label}</T>}
       {badge > 0 ? <View style={s.badge}><T style={s.badgeText}>{String(badge)}</T></View> : null}
     </Pressable>
+  );
+}
+
+// 設定ボタンの歯車（10×10ドット。1ドット2px）
+const GEAR = [
+  "....##....",
+  ".##.##.##.",
+  ".########.",
+  "..##..##..",
+  "####..####",
+  "####..####",
+  "..##..##..",
+  ".########.",
+  ".##.##.##.",
+  "....##....",
+];
+const GEAR_DOT = 2;
+function GearIcon() {
+  return (
+    <View style={{ width: 10 * GEAR_DOT, height: 18, justifyContent: "center" }} accessible={false}>
+      <View style={{ width: 10 * GEAR_DOT, height: 10 * GEAR_DOT }}>
+        {GEAR.flatMap((row, y) => [...row].map((c, x) => (c === "#"
+          ? <View key={`${x}_${y}`} style={{ position: "absolute", left: x * GEAR_DOT, top: y * GEAR_DOT, width: GEAR_DOT, height: GEAR_DOT, backgroundColor: C.text }} />
+          : null)))}
+      </View>
+    </View>
   );
 }
 
@@ -508,22 +560,22 @@ const s = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: "rgba(31,39,29,0.78)",
   },
-  villager: { fontSize: 15, color: C.leaf, flexShrink: 1 },
-  hudActions: { flexDirection: "row", gap: 6, flexShrink: 0 },
+  villager: { fontSize: 14, lineHeight: 17, color: C.leaf, flexShrink: 1 },
+  hudActions: { flexDirection: "row", gap: 4, flexShrink: 0 },
   hudBtn: {
     backgroundColor: C.mossSoft,
     borderColor: C.mossDeep,
     borderWidth: 2,
     borderRadius: 6,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     shadowColor: C.mossDeep,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 1,
     shadowRadius: 0,
   },
   hudBtnPressed: { transform: [{ translateY: 2 }], shadowOffset: { width: 0, height: 1 } },
-  hudText: { fontSize: 14 },
+  hudText: { fontSize: 13, lineHeight: 18 },
   badge: {
     position: "absolute",
     top: -8,
